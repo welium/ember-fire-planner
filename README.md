@@ -21,7 +21,26 @@ npm run build
 npm run preview
 ```
 
-The production files are in `dist/`. Deploy that directory to a static web host.
+The production files are in `dist/`. `npm run preview` serves that directory with Vite for a quick local check.
+
+## Deploy to Cloudflare Workers
+
+The site is a static Vite build served by Cloudflare Workers Assets. There is no Worker script and no backend. `wrangler.jsonc` points Wrangler at the `dist/` directory.
+
+```sh
+npx wrangler login
+npm run deploy
+```
+
+`npm run deploy` builds the app and uploads `dist/` to the `ember-fire-planner` Worker. The first run creates the Worker on your Cloudflare account; later runs publish a new version. To test the production build on Cloudflare's local runtime before deploying, run:
+
+```sh
+npm run preview:cf
+```
+
+Wrangler serves the site at `http://localhost:8787` by default.
+
+The app has no client-side routes; navigation uses in-page anchors and local state. No single-page-application fallback is configured, so unknown paths return Cloudflare's normal 404 response. Absolute `/assets/*` URLs are served from the same origin.
 
 ## Use the planner
 

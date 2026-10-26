@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { defaults, simulate, stockWeight, validate } from './simulation'
+import { clampGlideYears, defaults, maxGlideYears, simulate, stockWeight, validate } from './simulation'
 import type { Plan } from './simulation'
-const fixed: Plan = { ...defaults, age: 30, retirementAge: 32, endAge: 35, portfolio: 100, contribution: 20, spending: 30, income: 0, stockReturn: 0, bondReturn: 0, stockSD: 0, bondSD: 0, correlation: 0, inflation: 0, inflationSD: 0, fee: 0, simulations: 100 }
+const fixed: Plan = { ...defaults, age: 30, retirementAge: 32, endAge: 35, portfolio: 100, contribution: 20, spending: 30, income: 0, stockReturn: 0, bondReturn: 0, stockSD: 0, bondSD: 0, correlation: 0, inflation: 0, inflationSD: 0, fee: 0, glideYears: 0, simulations: 100 }
 describe('retirement cash flows', () => {
   it('contributes before retirement and withdraws from retirement onward', () => {
     const result = simulate(fixed)
@@ -77,5 +77,16 @@ describe('glide path and uncertainty', () => {
     for (const changes of [{age:50}, {retirementAge:96}, {stockSD:-1}, {correlation:2}, {inflationSD:-1}, {inflationSD:16}, {simulations:1e9}, {age:30.5}, {portfolio:NaN}, {retirementStocks:95}]) {
       expect(validate({ ...defaults,...changes })).not.toBeNull()
     }
+  })
+  it('caps the glide path at the years left until retirement', () => {
+    expect(maxGlideYears({ age: 30, retirementAge: 50 })).toBe(20)
+    expect(maxGlideYears({ age: 30, retirementAge: 90 })).toBe(40)
+    expect(maxGlideYears({ age: 40, retirementAge: 40 })).toBe(0)
+    // Regression: raising the current age must pull an over-long glide back
+    // so the slider, label, chart, and simulation stay in agreement.
+    expect(clampGlideYears({ ...defaults, age: 40 }).glideYears).toBe(10)
+    expect(clampGlideYears({ ...defaults, age: 30 }).glideYears).toBe(15)
+    expect(validate({ ...defaults, age: 40 })).not.toBeNull()
+    expect(validate({ ...defaults, age: 40, glideYears: 10 })).toBeNull()
   })
 })

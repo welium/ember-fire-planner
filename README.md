@@ -1,6 +1,6 @@
 # Ember FIRE planner
 
-A browser-based financial independence planner built with React, TypeScript, Vite, and Tailwind CSS. No backend is required. Financial inputs and calculations stay in the browser. Google Fonts supplies the typefaces; system fonts are used when unavailable.
+A browser-based financial independence planner built with React, TypeScript, Vite, and Tailwind CSS. No backend is required. Financial inputs and calculations stay in the browser. DM Sans and Manrope are self-hosted as variable fonts via Fontsource, so no third-party requests are needed; system fonts are used when the bundled fonts are unavailable.
 
 The interface supports English, Traditional Chinese, Simplified Chinese, and Japanese. A display-currency setting supports USD, TWD, HKD, CNY, JPY, EUR, GBP, CAD, AUD, SGD, CHF, and KRW.
 
@@ -41,6 +41,8 @@ npm run preview:cf
 Wrangler serves the site at `http://localhost:8787` by default.
 
 The app has no client-side routes; navigation uses in-page anchors and local state. No single-page-application fallback is configured, so unknown paths return Cloudflare's normal 404 response. Absolute `/assets/*` URLs are served from the same origin.
+
+`public/_headers` ships security and caching policy with the build: `nosniff`, a same-origin CSP (inline styles only, no inline scripts), deny framing, and immutable year-long caching for hashed `/assets/*` files.
 
 ## Use the planner
 
@@ -155,7 +157,7 @@ Inflation is drawn from a normal distribution with the chosen mean and standard 
 
 Because this division is nonlinear, real outcomes are not the same as deflating every path by the mean inflation rate.
 
-Stocks decline linearly from the starting weight to the retirement weight over the selected glide period. If the glide period begins before the current age, the current allocation reflects progress already made. A zero-year glide switches allocation at retirement. The remaining allocation is bonds, and the portfolio rebalances annually.
+Stocks decline linearly from the starting weight to the retirement weight over the selected glide period, which is capped at the years remaining until retirement (at most 40 years). The glide therefore always starts at today's allocation and reaches the retirement allocation exactly at retirement. A zero-year glide switches allocation at retirement. The balance is bonds, and the portfolio rebalances annually.
 
 All balances and cash flows are in today's purchasing power, expressed in the display currency. Each annual step:
 

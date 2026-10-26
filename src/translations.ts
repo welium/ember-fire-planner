@@ -167,4 +167,6 @@ export const translations: Record<string, readonly [string, string, string]> = {
   '90th percentile': ['第 90 百分位', '第 90 百分位', '90パーセンタイル'],
   'Survival probability (%)': ['資金充足機率 (%)', '资金充足概率 (%)', '資金維持確率 (%)'],
   'Ember — Your path to financial freedom': ['Ember — 走向財務自由', 'Ember — 走向财务自由', 'Ember — 経済的自由への道'],
+  'Glide years cannot exceed the years left until retirement ({max}).': ['風險調降年數不得超過距離退休的年數（{max}）。', '风险降低年数不得超过距离退休的年数（{max}）。', '移行期間はリタイアまでの残り年数（{max}年）を超えないでください。'],
+  'The plan changed since these scenarios were computed. Recompute to compare the current inputs.': ['規劃在情境計算後已有變更，請重新比較以對照目前設定。', '规划在情景计算后已有变更，请重新比较以对照当前设置。', 'プランが変更されたため、この結果は古くなっています。現在の条件で再計算してください。'],
 }

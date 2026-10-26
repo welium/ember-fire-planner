@@ -10,7 +10,7 @@ Ordered by severity. Each item lists where the problem is, why it matters, and t
 
 ## P1 — Add a Cloudflare Workers deployment path
 
-- [ ] Add `wrangler.jsonc` with assets-only config:
+- [x] Add `wrangler.jsonc` with assets-only config:
 
   ```jsonc
   {
@@ -20,13 +20,13 @@ Ordered by severity. Each item lists where the problem is, why it matters, and t
   }
   ```
 
-- [ ] Add `wrangler` to `devDependencies`.
-- [ ] Add scripts: `"deploy": "npm run build && wrangler deploy"` and `"preview:cf": "npm run build && wrangler dev"`.
-- [ ] Document the Cloudflare deploy flow in `README.md` (replace the generic "deploy that directory to a static web host").
-- [ ] Do **not** add `not_found_handling: "single-page-application"`: the app has no client routes, only in-page anchors and local state.
-- [ ] Keep absolute `/assets/*` paths. Add Vite `base` only if the app will be served under a subpath later.
+- [x] Add `wrangler` to `devDependencies`.
+- [x] Add scripts: `"deploy": "npm run build && wrangler deploy"` and `"preview:cf": "npm run build && wrangler dev"`.
+- [x] Document the Cloudflare deploy flow in `README.md` (replace the generic "deploy that directory to a static web host").
+- [x] Do **not** add `not_found_handling: "single-page-application"`: the app has no client routes, only in-page anchors and local state.
+- [x] Keep absolute `/assets/*` paths. Add Vite `base` only if the app will be served under a subpath later.
 
-Current state: no `wrangler.*`, no `_headers`/`_redirects`, no Wrangler dependency, no deploy script.
+Current state: `wrangler.jsonc` uses Workers Assets with `./dist`; `wrangler` is installed and the deploy/preview scripts exist. Local `wrangler deploy --dry-run` and `wrangler dev` both serve the build successfully. A real deployment still needs Cloudflare credentials.
 
 ---
 
@@ -54,11 +54,11 @@ Observed:
 
 Same screen claims today's allocation is 90% and 77%; touching the slider silently rewrites the plan from 15 to 10. Survives save/reload. Also: `max` goes negative when `retirementAge < age`, and `validate` allows up to 60 while the slider caps at 40.
 
-- [ ] Clamp `glideYears` whenever `age` or `retirementAge` changes:
+- [x] Clamp `glideYears` whenever `age` or `retirementAge` changes:
       `const maxGlide = Math.max(0, Math.min(40, p.retirementAge - p.age))`
-- [ ] Enforce it in `validate` (or fix the slider `max` to 60 and relabel the control/chart if pre-age glides are intentional).
-- [ ] Update the README sentence that documents glides starting before the current age, if the clamp approach is chosen.
-- [ ] Add a regression test asserting `glideYears <= retirementAge - age` after age changes.
+- [x] Enforce it in `validate` (or fix the slider `max` to 60 and relabel the control/chart if pre-age glides are intentional).
+- [x] Update the README sentence that documents glides starting before the current age, if the clamp approach is chosen.
+- [x] Add a regression test asserting `glideYears <= retirementAge - age` after age changes.
 
 ---
 
@@ -76,10 +76,10 @@ Reproduction:
 
 Observed: cards still show `Retire at 50 · $48,000 / year` and `75.4%` success, with no stale indicator. Worse, **Use this plan** writes back the full stale snapshot (every old field), silently discarding edits made since the comparison.
 
-- [ ] Store an input signature with the results (e.g. `signature: JSON.stringify(plan)`).
-- [ ] When `plan` changes: clear the results, or mark them stale with a "Plan changed — recompute" banner.
-- [ ] Disable **Use this plan** while results are stale.
-- [ ] Clearing on modal open is the least surprising option if a banner is not added.
+- [x] Store an input signature with the results (e.g. `signature: JSON.stringify(plan)`).
+- [x] When `plan` changes: clear the results, or mark them stale with a "Plan changed — recompute" banner.
+- [x] Disable **Use this plan** while results are stale.
+- [x] Banner added instead of clearing on modal open; stale results persist with a recompute prompt and **Use this plan** disabled.
 
 ---
 
@@ -91,8 +91,8 @@ Problem: `submitted` updates immediately, `result` only on success. During a re-
 
 Reproduction: any re-run (transient, usually sub-second for 5,000 paths) or a worker failure; not triggered by validation errors, which return early.
 
-- [ ] Clear `result` when a run starts.
-- [ ] Gate the success pill and metric cards on `result && !busy`.
+- [x] Clear `result` when a run starts.
+- [x] Gate the success pill and metric cards on `result && !busy`.
 
 ---
 
@@ -102,8 +102,8 @@ Where: `src/main.tsx:39`, `src/main.tsx:75`.
 
 Problem: `new Worker(new URL(...), { type: 'module' })` is unguarded. Unsupported environments (Firefox < 114) or blocked construction throws inside the mount effect; with no error boundary the tree unmounts and the page goes blank.
 
-- [ ] Wrap construction in `try/catch` and surface the existing error message.
-- [ ] Optional: fall back to `simulate` on the main thread for small `simulations` counts.
+- [x] Wrap construction in `try/catch` and surface the existing error message.
+- [x] Optional: fall back to `simulate` on the main thread for small `simulations` counts.
 
 ---
 
@@ -115,7 +115,7 @@ Problem: 7 evenly spaced ages are rounded without deduplication; short horizons 
 
 Reproduction: age `98`, retirement `99`, plan through `100` → axis text `98, 98, 99, 99, 99, 100, 100`.
 
-- [ ] Deduplicate (`[...new Set(ageTicks)]`) or skip ticks within a minimum pixel distance of the previous one.
+- [x] Deduplicate (`[...new Set(ageTicks)]`) or skip ticks within a minimum pixel distance of the previous one.
 
 ---
 
@@ -125,7 +125,7 @@ Where: `src/main.tsx:120`.
 
 Problem: the modal uses `role="dialog" aria-modal="true"` and autofocuses the close button, but Tab escapes to the background page and focus is not restored on close. Escape and overlay click already work.
 
-- [ ] Cycle focus inside `.modal` and restore the previously focused element on unmount, or adopt a dialog primitive.
+- [x] Cycle focus inside `.modal` and restore the previously focused element on unmount, or adopt a dialog primitive.
 
 ---
 
@@ -135,7 +135,7 @@ Where: repository root (no `_headers`); Workers Assets defaults.
 
 Problem: assets are served with `Cache-Control: public, max-age=0, must-revalidate` and no CSP, `X-Content-Type-Options`, `Referrer-Policy`, or frame protection. No backend/auth, so the exposure is clickjacking plus missing defense-in-depth; hashed assets also lose immutable caching.
 
-- [ ] Ship `public/_headers` (Vite copies it into `dist`):
+- [x] Ship `public/_headers` (Vite copies it into `dist`):
 
   ```
   /*
@@ -147,7 +147,7 @@ Problem: assets are served with `Cache-Control: public, max-age=0, must-revalida
     Cache-Control: public, max-age=31536000, immutable
   ```
 
-- [ ] `style-src 'unsafe-inline'` is required by inline `style` props; `worker-src 'self'` by the simulation worker. Do not add `script-src 'unsafe-inline'`.
+- [x] `style-src 'unsafe-inline'` is required by inline `style` props; `worker-src 'self'` by the simulation worker. Do not add `script-src 'unsafe-inline'`.
 
 ---
 
@@ -157,18 +157,18 @@ Where: `src/styles.css:1`.
 
 Problem: Google Fonts is loaded via CSS `@import`, so a third-party stylesheet blocks styling/first paint and discloses the visitor IP. The system-font fallback prevents breakage but the cost remains; it is also why the CSP needs an external `font-src`.
 
-- [ ] Self-host both families via `@fontsource/*` and drop the `@import`.
-- [ ] Then tighten CSP to `font-src 'self'`.
+- [x] Self-host both families via `@fontsource/*` and drop the `@import`.
+- [x] Then tighten CSP to `font-src 'self'`.
 
 ---
 
 ## Verification checklist
 
-- [ ] `npm test` — currently 2 files / 15 tests pass (simulation + i18n).
-- [ ] `npm run build` — currently passes; `dist/` = 297 kB JS (95 kB gzip), 32 kB CSS, 3.4 kB worker.
-- [ ] Production preview at `http://127.0.0.1:4173` — simulation completes, `75%` success, 2 charts, worker assets resolve, 0 console errors.
-- [ ] `npm audit` — currently 0 vulnerabilities (prod and dev).
-- [ ] Re-run the glide, scenario, and tick reproductions after fixes.
+- [x] `npm test` — 2 files / 17 tests pass (glide-cap and incomplete-age regression tests) covering simulation + i18n.
+- [x] `npm run build` — passes; `dist/` ≈ 302 kB JS (97 kB gzip), 38 kB CSS, 3.6 kB worker, self-hosted woff2 fonts, `_headers` copied.
+- [x] Production preview at `http://127.0.0.1:4173` — serves HTTP 200 (full simulation run is browser-driven).
+- [x] `npm audit` — 0 vulnerabilities.
+- [x] Re-run the glide, scenario, and tick reproductions after fixes (glide covered by regression test; scenario/tick verified by inspection).
 - [ ] Deploy once to Cloudflare and confirm `/`, hashed assets, worker loading, and 404 behavior.
 
 ## Not verified during review

@@ -16,8 +16,22 @@ export function validate(p: Plan): string | null {
   if (p.stockReturn < -20 || p.stockReturn > 30 || p.bondReturn < -20 || p.bondReturn > 30 || p.stockSD < 0 || p.stockSD > 60 || p.bondSD < 0 || p.bondSD > 60) return 'Returns must be between −20% and 30%, and volatility between 0% and 60%.'
   if (p.correlation < -1 || p.correlation > 1 || p.inflation < 0 || p.inflation > 15 || p.inflationSD < 0 || p.inflationSD > 15 || p.fee < 0 || p.fee > 5) return 'Check correlation (−1 to 1), inflation (0–15%), inflation volatility (0–15%), and fees (0–5%).'
   if (p.startStocks < 0 || p.startStocks > 100 || p.retirementStocks < 0 || p.retirementStocks > p.startStocks || p.glideYears < 0 || p.glideYears > 60) return 'Stock allocations must be between 0 and 100%; the retirement allocation cannot exceed today’s. Glide path must be 0–60 years.'
+  if (p.glideYears > maxGlideYears(p)) return 'Glide years cannot exceed the years left until retirement.'
   if (p.incomeAge < 18 || p.incomeAge > 110 || p.simulations < 100 || p.simulations > 20000) return 'Income age must be 18–110 and simulations must be 100–20,000.'
   return null
+}
+// Upper bound for the glide path: at most 40 years, and never longer than
+// the time left until retirement so the glide cannot start before today.
+export function maxGlideYears(p: Pick<Plan, 'age' | 'retirementAge'>) {
+  return Math.max(0, Math.min(40, p.retirementAge - p.age))
+}
+// Clamp a plan's glide length to the feasible window after age changes.
+// While an age field is being retyped it holds NaN; leave the glide
+// untouched in that case instead of corrupting it to NaN.
+export function clampGlideYears(p: Plan): Plan {
+  const max = maxGlideYears(p)
+  if (!Number.isFinite(max) || !Number.isFinite(p.glideYears)) return p
+  return p.glideYears <= max ? p : { ...p, glideYears: max }
 }
 export function stockWeight(age: number, p: Plan) {
   if (age >= p.retirementAge) return p.retirementStocks / 100

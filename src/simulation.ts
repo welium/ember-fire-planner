@@ -26,8 +26,11 @@ export function maxGlideYears(p: Pick<Plan, 'age' | 'retirementAge'>) {
   return Math.max(0, Math.min(40, p.retirementAge - p.age))
 }
 // Clamp a plan's glide length to the feasible window after age changes.
+// While an age field is being retyped it holds NaN; leave the glide
+// untouched in that case instead of corrupting it to NaN.
 export function clampGlideYears(p: Plan): Plan {
   const max = maxGlideYears(p)
+  if (!Number.isFinite(max) || !Number.isFinite(p.glideYears)) return p
   return p.glideYears <= max ? p : { ...p, glideYears: max }
 }
 export function stockWeight(age: number, p: Plan) {

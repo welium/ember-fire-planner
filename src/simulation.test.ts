@@ -89,4 +89,12 @@ describe('glide path and uncertainty', () => {
     expect(validate({ ...defaults, age: 40 })).not.toBeNull()
     expect(validate({ ...defaults, age: 40, glideYears: 10 })).toBeNull()
   })
+  it('leaves the glide path alone while ages are incomplete', () => {
+    // Clearing the age field to retype it must not corrupt the glide setting.
+    const cleared = clampGlideYears({ ...defaults, age: NaN })
+    expect(cleared.glideYears).toBe(defaults.glideYears)
+    expect(validate(cleared)).not.toBeNull()
+    // Retyping a valid age then clamps from the preserved value.
+    expect(clampGlideYears({ ...cleared, age: 40 }).glideYears).toBe(10)
+  })
 })

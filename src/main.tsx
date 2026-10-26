@@ -126,7 +126,10 @@ function Planner() {
   const field = (key: keyof Plan, label: string, options: { prefix?: string; suffix?: string; hint?: string; step?: number; min?: number; max?: number } = {}) => <label className="field" key={key}><span className="field-label">{label}{options.hint && <span className="hint-icon" title={options.hint}><CircleHelp size={13}/></span>}</span><span className="input-wrap">{options.prefix && <span>{options.prefix}</span>}<input aria-label={label} type="number" min={options.min ?? 0} max={options.max} step={options.step ?? 1} value={Number.isNaN(plan[key]) ? '' : plan[key]} onChange={e => update(key, e.target.value === '' ? NaN : Number(e.target.value))}/>{options.suffix && <span className="input-suffix">{options.suffix}</span>}</span></label>
   const success = result?.success ?? 0
   const showResult = result !== null && !busy
-  const maxGlide = maxGlideYears(plan)
+  // While an age field holds NaN the bound is not finite; fall back to the
+  // widest slider range so the control stays usable until validation runs.
+  const rawMaxGlide = maxGlideYears(plan)
+  const maxGlide = Number.isFinite(rawMaxGlide) ? rawMaxGlide : 40
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? 'mobile-open' : ''}`}>
       <a className="brand" href="#" aria-label={t("Ember home")} onClick={e => { e.preventDefault(); navigate('Overview') }}><span className="brand-symbol"><Flame size={25} fill="currentColor" strokeWidth={1.6}/></span>ember<span className="brand-dot">.</span></a>

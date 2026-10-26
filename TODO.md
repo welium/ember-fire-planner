@@ -79,7 +79,7 @@ Observed: cards still show `Retire at 50 · $48,000 / year` and `75.4%` success,
 - [x] Store an input signature with the results (e.g. `signature: JSON.stringify(plan)`).
 - [x] When `plan` changes: clear the results, or mark them stale with a "Plan changed — recompute" banner.
 - [x] Disable **Use this plan** while results are stale.
-- [x] Clearing on modal open is the least surprising option if a banner is not added.
+- [x] Banner added instead of clearing on modal open; stale results persist with a recompute prompt and **Use this plan** disabled.
 
 ---
 
@@ -164,7 +164,7 @@ Problem: Google Fonts is loaded via CSS `@import`, so a third-party stylesheet b
 
 ## Verification checklist
 
-- [x] `npm test` — 2 files / 16 tests pass (added a glide-cap regression test) pass (simulation + i18n).
+- [x] `npm test` — 2 files / 17 tests pass (glide-cap and incomplete-age regression tests) covering simulation + i18n.
 - [x] `npm run build` — passes; `dist/` ≈ 302 kB JS (97 kB gzip), 38 kB CSS, 3.6 kB worker, self-hosted woff2 fonts, `_headers` copied.
 - [x] Production preview at `http://127.0.0.1:4173` — serves HTTP 200 (full simulation run is browser-driven).
 - [x] `npm audit` — 0 vulnerabilities.

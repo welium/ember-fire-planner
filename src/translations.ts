@@ -1,5 +1,9 @@
 // English messages are stable keys; each row provides Traditional Chinese, Simplified Chinese, and Japanese.
 export const translations: Record<string, readonly [string, string, string]> = {
+  "Amounts are entered in {currency}. Changing currency does not convert values.": ["金額以 {currency} 輸入。變更幣別不會換算金額。","金額以 {currency} 輸入。變更幣別不會換算金額。","金額は {currency} で入力します。通貨を変更しても換算されません。"],
+  "Saved on this device": ["已儲存於此裝置","已儲存於此裝置","この端末に保存済み"],
+  "Unsaved changes": ["尚未儲存變更","尚未儲存變更","未保存の変更"],
+  "Save stores inputs. Update projection calculates results.": ["儲存會保留輸入；更新推估會計算結果。","儲存會保留輸入；更新推估會計算結果。","保存は入力を保管します。予測の更新は結果を計算します。"],
   "Enter a valid number.": ["請輸入有效數字。","請輸入有效數字。","有効な数値を入力してください。"],
   "Current age must be between 18 and 109.": ["目前年齡須介於 18 至 109 歲。","目前年齡須介於 18 至 109 歲。","現在の年齢は18〜109歳で入力してください。"],
   "Retirement age must be later than your current age and no later than 109.": ["退休年齡須大於目前年齡，且不超過 109 歲。","退休年齡須大於目前年齡，且不超過 109 歲。","退職年齢は現在の年齢より後、109歳以下にしてください。"],

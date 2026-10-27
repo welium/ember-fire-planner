@@ -46,3 +46,8 @@
 @media(max-width:590px){.topbar{padding:8px 12px;gap:4px}.display-preferences{gap:4px}.display-preferences select{max-width:90px;padding:4px}.breadcrumb{font-size:12px;gap:4px}.page-title h1{font-size:27px}.plan-card{padding:18px}.metric-grid{grid-template-columns:1fr}.next-card{display:block;padding:22px}.scenario-button{margin:20px 0 0;width:100%}.next-card .eyebrow{font-size:11px}.chart-bottom>span:last-child{display:flex}.balance-card>p{display:block;margin-left:0}.tabs{gap:6px 14px}.field-row{grid-template-columns:minmax(0,1fr)}.plan-fields{gap:18px}.subtle-badge{display:none}}
 
 .page-title{flex-wrap:wrap}.save-status{flex-basis:100%;font-size:13px;color:#485740;text-align:right}.save-status small{display:block;font-size:12px;margin-top:4px}.currency-field{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:14px}.currency-field select{font:inherit;min-height:44px;border:1px solid #ccd5c7;border-radius:5px;padding:8px;background:#fff}.currency-field .field-help{flex-basis:100%;margin:0}.workspace{border:0;padding:0 10px}.workspace-avatar{display:none}@media(max-width:590px){.save-status{text-align:left}.page-title{gap:12px}.display-preferences select{max-width:115px}}
+
+/* Keep long form actions clear of fields. */
+.mobile-menu{display:none}@media(max-width:760px){.mobile-menu{display:inline-flex}}
+
+.plan-card-bottom{position:static;box-shadow:none}.mobile-update-bar{display:none}@media(max-width:760px){main{padding-bottom:90px}.mobile-update-bar{display:block;position:fixed;bottom:0;left:0;right:0;padding:10px 16px;background:#fff;border-top:1px solid #dce3d8;z-index:10}.mobile-update-bar .button{width:100%}}

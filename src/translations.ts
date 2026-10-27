@@ -1,5 +1,6 @@
 // English messages are stable keys; each row provides Traditional Chinese, Simplified Chinese, and Japanese.
 export const translations: Record<string, readonly [string, string, string]> = {
+  "Projection update needs attention": ["推估更新需要處理", "推估更新需要處理", "予測の更新を確認してください"],
   "Amounts are entered in {currency}. Changing currency does not convert values.": ["金額以 {currency} 輸入。變更幣別不會換算金額。","金額以 {currency} 輸入。變更幣別不會換算金額。","金額は {currency} で入力します。通貨を変更しても換算されません。"],
   "Saved on this device": ["已儲存於此裝置","已儲存於此裝置","この端末に保存済み"],
   "Unsaved changes": ["尚未儲存變更","尚未儲存變更","未保存の変更"],

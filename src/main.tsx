@@ -108,7 +108,7 @@ function Planner() {
     setPlan(p => ({ ...p, [key]: value }))
     if (key === 'stockReturn' || key === 'stockSD') setStockPresetId('custom')
     if (key === 'bondReturn' || key === 'bondSD') setBondPresetId('custom')
-    setSaved(false); setExample(false)
+    setSaved(false); setExample(false); setError('')
   }
   const fieldErrors: Partial<Record<keyof Plan, string>> = {}
   for (const key of Object.keys(plan) as (keyof Plan)[]) {
@@ -149,7 +149,7 @@ function Planner() {
   const closeModal = () => { setModal(null); setNav('Plan') }
   const navigate = (target: string) => {
     setNav(target); setMobileNav(false)
-    if (target === 'Compare') { setModal('scenarios'); compare(); return }
+    if (target === 'Compare') { if (validate(plan)) { setNav('Plan'); showValidation(); return } setModal('scenarios'); compare(); return }
     setModal(null)
     document.getElementById(target === 'Results' ? 'results' : 'planner')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -195,7 +195,7 @@ function Planner() {
   const field = (key: keyof Plan, label: string, options: { prefix?: string; suffix?: string; hint?: string; step?: number; min?: number; max?: number } = {}) => <label className="field" key={key} data-field={key}><span className="field-label">{label}{options.hint && <span className="hint-icon"><CircleHelp size={16}/></span>}</span>{options.hint && <span className="field-help">{options.hint}</span>}<span className="input-wrap">{options.prefix && <span>{options.prefix}</span>}{['portfolio','contribution','spending','income'].includes(key) ? <FinancialInput label={label} value={plan[key]} divisor={periods[key] === 'monthly' ? 12 : 1} format={number} error={validationShown ? fieldErrors[key] : undefined} fieldKey={key} onChange={value => update(key, value)}/> : <input aria-label={label} aria-invalid={validationShown && !!fieldErrors[key]} aria-describedby={validationShown && fieldErrors[key] ? `error-${key}` : undefined} type="number" min={options.min ?? 0} max={options.max} step={options.step ?? 1} value={Number.isNaN(plan[key]) ? '' : plan[key]} onChange={e => update(key, e.target.value === '' ? NaN : Number(e.target.value))} onBlur={() => { if (key === 'age' || key === 'retirementAge') setPlan(p => clampGlideYears(p)) }}/>}{options.suffix && !["contribution","spending","income"].includes(key) && <span className="input-suffix">{options.suffix}</span>}</span>{["contribution","spending","income"].includes(key) && <select aria-label={t("Entry period for {field}", { field: label })} value={periods[key] ?? "annual"} onChange={e => setPeriods(p => ({ ...p, [key]: e.target.value as "annual" | "monthly" }))}><option value="annual">{t("Per year")}</option><option value="monthly">{t("Per month")}</option></select>}{validationShown && fieldErrors[key] && <span className="field-error" id={`error-${key}`}>{fieldErrors[key]}</span>}</label>
   const success = result?.success ?? 0
   const showResult = result !== null
-  const projectionStatus = busy ? t("Updating projection…") : dirty ? t("Inputs changed — update projection") : result ? t("Up to date") : t("Projection unavailable")
+  const projectionStatus = busy ? t("Updating projection…") : error ? t("Projection update needs attention") : dirty ? t("Inputs changed — update projection") : result ? t("Up to date") : t("Projection unavailable")
   // Preserve the scale during partial age edits; clamp the value on blur.
   const rawMaxGlide = maxGlideYears(plan)
   const maxGlide = Number.isFinite(rawMaxGlide) ? Math.max(rawMaxGlide, plan.glideYears) : plan.glideYears
@@ -238,6 +238,7 @@ function Planner() {
 
           <section className="next-card"><span className="next-icon"><Leaf size={22}/></span><div className="eyebrow">{t("YOUR LIFE. MORE POSSIBILITIES.")}</div><h2>{t("What if your next chapter")}<br/>{t("looked a little different?")}</h2><p>{t("A few small changes can make a big difference.")}<br/>{t("See what happens when you explore.")}</p><button className="button scenario-button" onClick={() => { navigate('Compare') }}><Plus size={16}/> {t("Explore a scenario")} <ArrowRight size={15}/></button></section>
         </div>
+        {tab === "Advanced assumptions" && <div className="mobile-update-bar"><button className="button primary" disabled={busy} onClick={() => run()}>{busy ? t("Updating projection…") : t("Update projection")}</button></div>}
         <footer><span><Flame size={14}/> {t("Built for possibilities, not predictions.")}</span><button onClick={() => setModal('method')}>{t("Our methodology")} <ArrowUpRightIcon/></button><span>{t("Planning tool only. Not financial advice.")}</span></footer>
       </main>
     </div>

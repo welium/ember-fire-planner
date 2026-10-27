@@ -1,5 +1,10 @@
 // English messages are stable keys; each row provides Traditional Chinese, Simplified Chinese, and Japanese.
 export const translations: Record<string, readonly [string, string, string]> = {
+  "Example plan": ["範例計畫","範例計畫","サンプルプラン"],
+  "Simulated retirement funding": ["模擬退休資金充足率","模擬退休資金充足率","退職資金のシミュレーション"],
+  "Your plan funded retirement in {rate} of simulations.": ["此計畫在 {rate} 的模擬中可支應退休支出。","此計畫在 {rate} 的模擬中可支應退休支出。","このプランはシミュレーションの {rate} で退職生活を賄えました。"],
+  "Explore changes to retirement age or spending.": ["試著調整退休年齡或支出。","試著調整退休年齡或支出。","退職年齢や支出の変更を試してください。"],
+  "About this estimate": ["關於此推估","關於此推估","この推計について"],
   "Updating projection…": ["正在更新推估…","正在更新推估…","予測を更新中…"],
   "Inputs changed — update projection": ["輸入已變更，請更新推估","輸入已變更，請更新推估","入力が変更されました。予測を更新してください"],
   "Up to date": ["推估已更新","推估已更新","最新の予測です"],

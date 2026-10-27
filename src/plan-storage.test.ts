@@ -36,11 +36,27 @@ describe('saved plans', () => {
     expect(parseSavedPlan(JSON.stringify({ ...saved, plan: { ...saved.plan, stockReturn: 4 } })).stockPresetId).toBe('custom')
     expect(matchingPreset('treasury-short', 'stock', 1, 2)).toBe('custom')
   })
+  it('preserves corporate bond assumptions as custom after the global aggregate replacement', () => {
+    const saved = initialSavedPlan()
+    const plan = { ...saved.plan, bondReturn: 1.79, bondSD: 6.44 }
+    const loaded = parseSavedPlan(JSON.stringify({ ...saved, plan, bondPresetId: 'global-ig-corporate' }))
+    expect(loaded.plan).toEqual(plan)
+    expect(loaded.bondPresetId).toBe('custom')
+    expect(saved.bondPresetId).toBe('global-ig-bonds')
+  })
   it('falls back for malformed saves and unsupported versions', () => {
     for (const raw of [null, 'broken', '[]', 'null', '{"version":3}', '{"portfolio":"100"}', '{"stockSD":-1}']) expect(parseSavedPlan(raw)).toEqual(initialSavedPlan())
   })
 })
 describe('historical presets', () => {
+  it('uses a broad unhedged USD bond benchmark covering at least 1999', () => {
+    const preset = presets.find(p => p.id === initialSavedPlan().bondPresetId)!
+    expect(preset.start <= '1999-01-01').toBe(true)
+    expect(preset.basis).toContain('FTSE WorldBIG')
+    expect(preset.basis).toContain('USD unhedged')
+    expect(preset.cagr).toBe(2.94)
+    expect(preset.sd).toBe(5.97)
+  })
   it('has six stock and three bond presets with valid dates, inputs, and sources', () => {
     expect(presets.filter(p => p.asset === 'stock')).toHaveLength(6)
     expect(presets.filter(p => p.asset === 'bond')).toHaveLength(3)

@@ -85,15 +85,18 @@
       "basis": "ETF total return proxy"
     },
     {
-      "id": "global-ig-corporate",
-      "label": "Global investment-grade corporate — CORP",
-      "cagr": 1.7856374089,
-      "sd": 6.4386296932,
-      "start": "2012-09-24",
+      "id": "global-ig-bonds",
+      "label": "Global investment-grade bonds — USD unhedged",
+      "cagr": 2.94,
+      "sd": 5.97,
+      "start": "1998-12-31",
       "end": "2026-09-30",
       "asset": "bond",
-      "source": "https://finance.yahoo.com/quote/CORP.L/history/",
-      "basis": "ETF total return proxy"
+      "source": "https://research.ftserussell.com/analytics/factsheets/home/downloadsingleissue?issueName=WBIG&isManual=True",
+      "basis": "FTSE WorldBIG total return, USD unhedged; provider since-base-date statistics",
+      "indexCode": "WorldBIG",
+      "statisticsMethod": "Provider-published annualized return and standard deviation since December 31, 1998; monthly observations not acquired or independently recalculated.",
+      "sourceSha256": "3dbdc22b1e8e06e639b76fba1215a2e56df9a7b4317dc2fd7097c3bc358f0b1e"
     },
     {
       "id": "treasury-short",

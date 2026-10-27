@@ -77,11 +77,11 @@ Select a stock and bond preset in **Assumptions** to apply both nominal compound
 | Japan equities — MSCI Japan | 5.43% | 16.20% | 1998-12-31–2026-09-30 |
 | China equities — MSCI China | 5.84% | 28.05% | 1998-12-31–2026-09-30 |
 | Nasdaq-100 — QQQ | 10.88% | 23.26% | 1999-03-10–2026-09-30 |
-| Global investment-grade corporate — CORP | 1.79% | 6.44% | 2012-09-24–2026-09-30 |
+| Global investment-grade bonds — USD unhedged | 2.94% | 5.97% | 1998-12-31–2026-09-30 |
 | U.S. Treasury — short term (1–3 years) | 1.95% | 1.49% | 2002-07-30–2026-09-30 |
 | U.S. Treasury — intermediate term (7–10 years) | 3.36% | 6.66% | 2002-07-30–2026-09-30 |
 
-Fresh and reset plans use MSCI ACWI and CORP. All presets use USD unhedged total returns, including reinvested dividends/coupons. Source statistics retain full precision for reference; preset inputs and calculations use values rounded to two decimal places. Inflation remains 2.0% with 1.7% SD, shock correlation 0.30, and additional fees 0.2%; these are separate illustrative assumptions and are not estimated when selecting presets.
+Fresh and reset plans use MSCI ACWI and the FTSE World Broad Investment-Grade Bond Index (WorldBIG). The global bond preset includes investment-grade government, government-related, corporate, and securitized debt across currencies, with unhedged total returns measured in USD. Saved plans with the retired corporate-only preset retain their numeric assumptions and load that selection as Custom. All presets use USD unhedged total returns, including reinvested dividends/coupons. Source statistics retain full precision for reference; preset inputs and calculations use values rounded to two decimal places. Inflation remains 2.0% with 1.7% SD, shock correlation 0.30, and additional fees 0.2%; these are separate illustrative assumptions and are not estimated when selecting presets.
 
 ### Sources and limitations
 
@@ -89,9 +89,11 @@ The frozen catalog is in `data/assumptions/snapshot.json`, retrieved October 27,
 
 MSCI ACWI covers developed/emerging large and mid caps, excluding small caps. MSCI Hong Kong follows country classification and differs from HSI's mainland-company exposure. MSCI China includes eligible offshore listings and partial A-share inclusion, with coverage changing over time; it is not Shanghai-only.
 
-ETF proxies use Yahoo daily adjusted market closes and their distribution adjustments. CAGR uses actual endpoints and elapsed days / 365.2425. SD is sample monthly simple-return SD times sqrt(12), excluding the initial partial month. ETF returns embed fund expenses; enter only additional expenses in annual fees. CORP's issuer reports inception NAV CAGR of 1.80%, compared with the 1.79% market-close calculation. SHY/IEF vendor histories start eight calendar days after their July 22, 2002 fund launches.
+The global bond preset uses FTSE WorldBIG unhedged USD total returns. Its September 30, 2026 official factsheet reports annualized return of 2.94% and annualized standard deviation of 5.97% since the December 31, 1998 base date. These are provider-published full-period statistics, not calculations from an ETF's shorter history. The source PDF checksum is stored as `sourceSha256`. Monthly observations have not been acquired or independently recalculated; the factsheet does not specify the SD sampling convention in its summary. Returns before index launch are hypothetical historical performance. WorldBIG covers investment-grade government, government-sponsored/supranational, collateralized, and corporate debt across currencies. Index returns exclude fund expenses; annual fees apply separately.
 
-References: [MSCI](https://www.msci.com/indexes), [CORP](https://www.ishares.com/ch/individual/en/products/251813/ishares-global-corporate-bond-ucits-etf), [SHY](https://www.ishares.com/us/products/239452/ishares-1-3-year-treasury-bond-etf), [IEF](https://www.ishares.com/us/products/239456/ishares-7-10-year-treasury-bond-etf). The implementation plan records ETF inputs, checksums, and longer-history targets. Raw provider observations are not redistributed; public access does not establish redistribution permission.
+ETF proxies use Yahoo daily adjusted market closes and their distribution adjustments. CAGR uses actual endpoints and elapsed days / 365.2425. SD is sample monthly simple-return SD times sqrt(12), excluding the initial partial month. ETF returns embed fund expenses; enter only additional expenses in annual fees. SHY/IEF vendor histories start eight calendar days after their July 22, 2002 fund launches.
+
+References: [MSCI](https://www.msci.com/indexes), [FTSE WorldBIG factsheet](https://research.ftserussell.com/analytics/factsheets/home/downloadsingleissue?issueName=WBIG&isManual=True), [FTSE index history](https://www.lseg.com/content/dam/ftse-russell/en_us/documents/other/product-highlights-ftse-fixed-income-indexes-history.pdf), [SHY](https://www.ishares.com/us/products/239452/ishares-1-3-year-treasury-bond-etf), [IEF](https://www.ishares.com/us/products/239456/ishares-7-10-year-treasury-bond-etf). The implementation plan records ETF inputs, checksums, and longer-history targets. Raw provider observations are not redistributed; public access does not establish redistribution permission.
 
 The offline tool accepts a local JSON array of monthly observations, each with an ISO date and positive value:
 

@@ -81,7 +81,7 @@ Select a stock and bond preset in **Assumptions** to apply both nominal compound
 | U.S. Treasury — short term (1–3 years) | 1.95% | 1.49% | 2002-07-30–2026-09-30 |
 | U.S. Treasury — intermediate term (7–10 years) | 3.36% | 6.66% | 2002-07-30–2026-09-30 |
 
-Fresh and reset plans use MSCI ACWI and CORP. All presets use USD unhedged total returns, including reinvested dividends/coupons. The catalog retains full precision. Inflation remains 2.0% with 1.7% SD, shock correlation 0.30, and additional fees 0.2%; these are separate illustrative assumptions and are not estimated when selecting presets.
+Fresh and reset plans use MSCI ACWI and CORP. All presets use USD unhedged total returns, including reinvested dividends/coupons. Source statistics retain full precision for reference; preset inputs and calculations use values rounded to two decimal places. Inflation remains 2.0% with 1.7% SD, shock correlation 0.30, and additional fees 0.2%; these are separate illustrative assumptions and are not estimated when selecting presets.
 
 ### Sources and limitations
 

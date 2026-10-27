@@ -1,6 +1,6 @@
 import { defaults, clampGlideYears, validate } from './simulation'
 import type { Plan } from './simulation'
-import { defaultStockPreset, defaultBondPreset, matchingPreset } from './assumption-presets'
+import { presets, defaultStockPreset, defaultBondPreset, matchingPreset } from './assumption-presets'
 
 export interface SavedPlan { version: 2; plan: Plan; stockPresetId: string; bondPresetId: string }
 const legacyDefaults = { ...defaults, stockReturn: 7.1, stockSD: 15.9, bondReturn: 5.8, bondSD: 5.5 }
@@ -33,8 +33,13 @@ export function parseSavedPlan(raw: string | null): SavedPlan {
       migrated.bondReturn = arithmeticToCagr(migrated.bondReturn, migrated.bondSD)
     }
     if (validate(migrated)) return initialSavedPlan()
-    return { version: 2, plan: migrated,
-      stockPresetId: legacy ? 'custom' : matchingPreset(stored.stockPresetId, 'stock', migrated.stockReturn, migrated.stockSD),
-      bondPresetId: legacy ? 'custom' : matchingPreset(stored.bondPresetId, 'bond', migrated.bondReturn, migrated.bondSD) }
+    const stockPresetId = legacy ? 'custom' : matchingPreset(stored.stockPresetId, 'stock', migrated.stockReturn, migrated.stockSD)
+    const bondPresetId = legacy ? 'custom' : matchingPreset(stored.bondPresetId, 'bond', migrated.bondReturn, migrated.bondSD)
+    // Normalize preset values saved before the two-decimal precision limit.
+    const stock = presets.find(p => p.id === stockPresetId)
+    const bond = presets.find(p => p.id === bondPresetId)
+    if (stock) { migrated.stockReturn = stock.cagr; migrated.stockSD = stock.sd }
+    if (bond) { migrated.bondReturn = bond.cagr; migrated.bondSD = bond.sd }
+    return { version: 2, plan: migrated, stockPresetId, bondPresetId }
   } catch { return initialSavedPlan() }
 }

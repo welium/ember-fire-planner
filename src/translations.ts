@@ -1,5 +1,6 @@
 // English messages are stable keys; each row provides Traditional Chinese, Simplified Chinese, and Japanese.
 export const translations: Record<string, readonly [string, string, string]> = {
+  "Update projection": ["更新推估", "更新推估", "予測を更新"],
   "Stock preset": ["股票預設","股票预设","株式プリセット"],
   "Bond preset": ["債券預設","债券预设","債券プリセット"],
   "Custom": ["自訂","自定义","カスタム"],

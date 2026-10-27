@@ -1,3 +1,5 @@
+import { defaultStockPreset, defaultBondPreset } from './assumption-presets'
+
 export interface Plan {
   age: number; retirementAge: number; endAge: number; portfolio: number; contribution: number;
   spending: number; income: number; incomeAge: number; stockReturn: number; stockSD: number;
@@ -5,7 +7,7 @@ export interface Plan {
   startStocks: number; retirementStocks: number; glideYears: number; simulations: number;
 }
 // Global capital-market assumptions. See README for the derivation and sources.
-export const defaults: Plan = { age: 30, retirementAge: 50, endAge: 95, portfolio: 250000, contribution: 24000, spending: 48000, income: 0, incomeAge: 67, stockReturn: 7.1, stockSD: 15.9, bondReturn: 5.8, bondSD: 5.5, correlation: 0.3, inflation: 2, inflationSD: 1.7, fee: 0.2, startStocks: 90, retirementStocks: 50, glideYears: 15, simulations: 5000 }
+export const defaults: Plan = { age: 30, retirementAge: 50, endAge: 95, portfolio: 250000, contribution: 24000, spending: 48000, income: 0, incomeAge: 67, stockReturn: defaultStockPreset.cagr, stockSD: defaultStockPreset.sd, bondReturn: defaultBondPreset.cagr, bondSD: defaultBondPreset.sd, correlation: 0.3, inflation: 2, inflationSD: 1.7, fee: 0.2, startStocks: 90, retirementStocks: 50, glideYears: 15, simulations: 5000 }
 export interface Point { age: number; p10: number; p25: number; p50: number; p75: number; p90: number; success: number }
 export interface Results { points: Point[]; success: number; successInterval: [number, number]; retirementBalance: number; endingBalance: number; withdrawalRate: number | null; seed: number }
 export type StressId = 'lowerReturns' | 'muchLowerReturns' | 'higherInflation' | 'higherCorrelation'
@@ -65,9 +67,11 @@ export function stockWeight(age: number, p: Plan) {
 function randomGenerator(seed: number) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 }
 }
-function logParameters(mean: number, sd: number) {
-  const variance = Math.log(1 + (sd / 100) ** 2 / (1 + mean / 100) ** 2)
-  return { mu: Math.log(1 + mean / 100) - variance / 2, sigma: Math.sqrt(variance) }
+// CAGR sets expected log growth; SD remains the standard deviation of simple returns.
+export function logParameters(cagr: number, sd: number) {
+  const ratio = (sd / 100 / (1 + cagr / 100)) ** 2
+  const variance = Math.log1p(2 * ratio / (1 + Math.sqrt(1 + 4 * ratio)))
+  return { mu: Math.log1p(cagr / 100), sigma: Math.sqrt(variance) }
 }
 export function simulate(p: Plan, seed = 42): Results {
   const error = validate(p); if (error) throw new Error(error)

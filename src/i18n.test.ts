@@ -3,10 +3,11 @@ import ts from 'typescript'
 import { readFileSync } from 'node:fs'
 import { currencies, currencySymbols, formatMoney, languages, parsePreferences, translate } from './i18n'
 import { translations } from './translations'
+import { presets } from './assumption-presets'
 
 describe('translations', () => {
   it('covers literal UI and validation messages in every supported language', () => {
-    const keys = new Set<string>()
+    const keys = new Set<string>(presets.flatMap(p => [p.label, p.basis]))
     for (const file of ['main.tsx', 'simulation.ts', 'simulation.worker.ts']) {
       const source = ts.createSourceFile(file, readFileSync(new URL(file, import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, file.endsWith('tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
       function visit(node: ts.Node) {

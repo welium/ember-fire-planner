@@ -1,0 +1,121 @@
+{
+  "retrieved": "2026-10-27",
+  "currency": "USD",
+  "hedged": false,
+  "presets": [
+    {
+      "id": "global-equity",
+      "asset": "stock",
+      "label": "Global equities — MSCI ACWI",
+      "cagr": 7.691417639276699,
+      "sd": 15.431942173282284,
+      "start": "1998-12-31",
+      "end": "2026-09-30",
+      "source": "https://www.msci.com/indexes/index/892400",
+      "basis": "Gross total return index",
+      "observations": 334,
+      "inputUrl": "https://www.msci.com/indexes/api/index/performance?indexCode=892400&currency=USD&variant=GRTR&frequency=monthly&baseValue100=false&startDate=1969-12-31&endDate=2026-09-30",
+      "sha256": "21916caf91bb8823d47dcce9a006c3e7dd2af595fd3974a6e94ee16f59874fc1"
+    },
+    {
+      "id": "us-equity",
+      "asset": "stock",
+      "label": "U.S. equities — MSCI USA",
+      "cagr": 8.658325263428312,
+      "sd": 15.235539173226364,
+      "start": "1998-12-31",
+      "end": "2026-09-30",
+      "source": "https://www.msci.com/indexes/index/984000",
+      "basis": "Gross total return index",
+      "observations": 334,
+      "inputUrl": "https://www.msci.com/indexes/api/index/performance?indexCode=984000&currency=USD&variant=GRTR&frequency=monthly&baseValue100=false&startDate=1969-12-31&endDate=2026-09-30",
+      "sha256": "b2fb629cdd43f12a40a5427a00d19c64481d18219f89a1c3907a4e43eb973f7c"
+    },
+    {
+      "id": "hong-kong-equity",
+      "asset": "stock",
+      "label": "Hong Kong equities — MSCI Hong Kong",
+      "cagr": 6.86461216996738,
+      "sd": 21.308951283808828,
+      "start": "1998-12-31",
+      "end": "2026-09-30",
+      "source": "https://www.msci.com/indexes/index/934400",
+      "basis": "Gross total return index",
+      "observations": 334,
+      "inputUrl": "https://www.msci.com/indexes/api/index/performance?indexCode=934400&currency=USD&variant=GRTR&frequency=monthly&baseValue100=false&startDate=1969-12-31&endDate=2026-09-30",
+      "sha256": "815b3a5ddcc877b2f2eb1c29279e24a016cd6bf3fdace7c42954ce3ad0959dcc"
+    },
+    {
+      "id": "japan-equity",
+      "asset": "stock",
+      "label": "Japan equities — MSCI Japan",
+      "cagr": 5.432838166749356,
+      "sd": 16.203560434577735,
+      "start": "1998-12-31",
+      "end": "2026-09-30",
+      "source": "https://www.msci.com/indexes/index/939200",
+      "basis": "Gross total return index",
+      "observations": 334,
+      "inputUrl": "https://www.msci.com/indexes/api/index/performance?indexCode=939200&currency=USD&variant=GRTR&frequency=monthly&baseValue100=false&startDate=1969-12-31&endDate=2026-09-30",
+      "sha256": "1832d8bd665f159c3ba9a538abb63b96c2a82988b9c0e5ff6b1c762a05b976a9"
+    },
+    {
+      "id": "china-equity",
+      "asset": "stock",
+      "label": "China equities — MSCI China",
+      "cagr": 5.842722189238741,
+      "sd": 28.046835198845656,
+      "start": "1998-12-31",
+      "end": "2026-09-30",
+      "source": "https://www.msci.com/indexes/index/302400",
+      "basis": "Gross total return index",
+      "observations": 334,
+      "inputUrl": "https://www.msci.com/indexes/api/index/performance?indexCode=302400&currency=USD&variant=GRTR&frequency=monthly&baseValue100=false&startDate=1969-12-31&endDate=2026-09-30",
+      "sha256": "90ad1939857a56e09e3928a857ea812439c224ac894008cf62d2f58d423b655e"
+    },
+    {
+      "id": "nasdaq100",
+      "label": "Nasdaq-100 — QQQ",
+      "cagr": 10.8768787008,
+      "sd": 23.2618139221,
+      "start": "1999-03-10",
+      "end": "2026-09-30",
+      "asset": "stock",
+      "source": "https://finance.yahoo.com/quote/QQQ/history/",
+      "basis": "ETF total return proxy"
+    },
+    {
+      "id": "global-ig-corporate",
+      "label": "Global investment-grade corporate — CORP",
+      "cagr": 1.7856374089,
+      "sd": 6.4386296932,
+      "start": "2012-09-24",
+      "end": "2026-09-30",
+      "asset": "bond",
+      "source": "https://finance.yahoo.com/quote/CORP.L/history/",
+      "basis": "ETF total return proxy"
+    },
+    {
+      "id": "treasury-short",
+      "label": "U.S. Treasury — short term (1–3 years)",
+      "cagr": 1.953509298,
+      "sd": 1.4948406816,
+      "start": "2002-07-30",
+      "end": "2026-09-30",
+      "asset": "bond",
+      "source": "https://finance.yahoo.com/quote/SHY/history/",
+      "basis": "ETF total return proxy"
+    },
+    {
+      "id": "treasury-intermediate",
+      "label": "U.S. Treasury — intermediate term (7–10 years)",
+      "cagr": 3.3642801487,
+      "sd": 6.6576538473,
+      "start": "2002-07-30",
+      "end": "2026-09-30",
+      "asset": "bond",
+      "source": "https://finance.yahoo.com/quote/IEF/history/",
+      "basis": "ETF total return proxy"
+    }
+  ]
+}

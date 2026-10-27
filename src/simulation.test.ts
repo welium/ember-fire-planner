@@ -129,7 +129,7 @@ describe('uncertainty and sensitivity analysis', () => {
     expect(input).toEqual(snapshot)
     expect(baseline).toEqual(simulate(input, 7))
     expect(sensitivity.map(s => [s.plan.stockReturn, s.plan.bondReturn, s.plan.inflation, s.plan.correlation])).toEqual([
-      [6.1, 4.8, 2, 0.3], [5.1, 3.8, 2, 0.3], [7.1, 5.8, 3, 0.3], [7.1, 5.8, 2, 0.7],
+      [input.stockReturn - 1, input.bondReturn - 1, 2, 0.3], [input.stockReturn - 2, input.bondReturn - 2, 2, 0.3], [input.stockReturn, input.bondReturn, 3, 0.3], [input.stockReturn, input.bondReturn, 2, 0.7],
     ])
     for (const s of sensitivity) expect(s.result).toEqual(simulate(s.plan, 7))
   })
@@ -144,8 +144,8 @@ describe('uncertainty and sensitivity analysis', () => {
     // One accumulation year; observe that year before any retirement withdrawal.
     const input = { ...fixed, retirementAge: 31, endAge: 32, portfolio: 100, contribution: 0, spending: 0, startStocks: 100, retirementStocks: 100, stockReturn: 7.1, stockSD: 15.9, simulations: 20000 }
     const point = simulate(input, 42).points[1]
-    const variance = Math.log(1 + .159 ** 2 / 1.071 ** 2)
-    const mu = Math.log(1.071) - variance / 2
+    const variance = Math.log((1 + Math.sqrt(1 + 4 * (.159 / 1.071) ** 2)) / 2)
+    const mu = Math.log(1.071)
     const expected = (z: number) => 100 * Math.exp(mu + Math.sqrt(variance) * z)
     // Tolerances cover ordinary quantile sampling error at this sample size.
     expect(Math.abs(point.p50 - expected(0))).toBeLessThan(.6)

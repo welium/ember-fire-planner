@@ -65,87 +65,58 @@ CSV exports include localized column names and the currency code in the monetary
 
 Translation keys are the English messages. Each key must have Traditional Chinese, Simplified Chinese, and Japanese versions with matching placeholders. Add or change UI text through the `t()` function and add all four versions in `src/translations.ts`. The test suite scans the UI and validation messages for untranslated keys.
 
-## Default assumptions
+## Historical assumption presets
 
-The example plan uses global capital-market assumptions, not U.S.-only historical returns. The data are a 10-year, nominal, U.S.-dollar view as of September 30, 2026.
+Select a stock and bond preset in **Assumptions** to apply both nominal compound annual return (CAGR) and annualized simple-return standard deviation. Other inputs remain unchanged. Editing either field switches that asset to Custom. Run simulation explicitly to update results. Source links and observed dates appear below each selector. Changing display currency does not convert returns or amounts.
 
-| Input | Default | Basis |
-| --- | ---: | --- |
-| Global stock return | 7.1% | Arithmetic mean implied by a 5.9% expected compound return and 15.9% volatility |
-| Global stock volatility | 15.9% | U.S. and ex-U.S. equity volatility, weighted by VT's regional allocation |
-| Global bond return | 5.8% | Arithmetic mean implied by a 5.65% expected compound return and 5.5% volatility |
-| Global bond volatility | 5.5% | U.S. and hedged global aggregate bond volatility |
-| Inflation | 2.0% | Midpoint of Vanguard's 10-year U.S. inflation range |
-| Inflation volatility | 1.7% | Vanguard and J.P. Morgan 10-year inflation volatility estimates |
-| Stock–bond correlation | 0.30 | J.P. Morgan's 2026 long-term correlation of 0.33 for global equities versus U.S. aggregate bonds |
-| Fees | 0.2% | User assumption; include fund, platform, and advisory costs |
+| Preset | CAGR | Annualized SD | Observed period |
+| --- | ---: | ---: | --- |
+| Global equities — MSCI ACWI | 7.69% | 15.43% | 1998-12-31–2026-09-30 |
+| U.S. equities — MSCI USA | 8.66% | 15.24% | 1998-12-31–2026-09-30 |
+| Hong Kong equities — MSCI Hong Kong | 6.86% | 21.31% | 1998-12-31–2026-09-30 |
+| Japan equities — MSCI Japan | 5.43% | 16.20% | 1998-12-31–2026-09-30 |
+| China equities — MSCI China | 5.84% | 28.05% | 1998-12-31–2026-09-30 |
+| Nasdaq-100 — QQQ | 10.88% | 23.26% | 1999-03-10–2026-09-30 |
+| Global investment-grade corporate — CORP | 1.79% | 6.44% | 2012-09-24–2026-09-30 |
+| U.S. Treasury — short term (1–3 years) | 1.95% | 1.49% | 2002-07-30–2026-09-30 |
+| U.S. Treasury — intermediate term (7–10 years) | 3.36% | 6.66% | 2002-07-30–2026-09-30 |
 
-### Stock derivation
+Fresh and reset plans use MSCI ACWI and CORP. All presets use USD unhedged total returns, including reinvested dividends/coupons. The catalog retains full precision. Inflation remains 2.0% with 1.7% SD, shock correlation 0.30, and additional fees 0.2%; these are separate illustrative assumptions and are not estimated when selecting presets.
 
-VT tracks the FTSE Global All Cap Index. The index had 62.39% U.S. and 37.61% non-U.S. weight at September 30, 2026. The Vanguard Capital Markets Model (VCMM) 10-year midpoints for that date are:
+### Sources and limitations
 
-- U.S. equities: 5.8% expected annualized compound return; 15.0% median volatility.
-- Global ex-U.S. equities: 6.0% expected annualized compound return; 19.1% median volatility.
+The frozen catalog is in `data/assumptions/snapshot.json`, retrieved October 27, 2026. Five MSCI entries use the provider's public monthly gross USD index levels (GRTR). Each record includes its exact request URL, index code, observation count, and response checksum. The public endpoint returns history from December 1998 even when an earlier start is requested. These calculations do not use the longer 1969/1987/1992 histories documented as available by MSCI; obtaining permitted longer exports remains unfinished data work.
 
-The weighted expected compound return is `0.6239 × 5.8% + 0.3761 × 6.0% = 5.875%`. Using a 0.84 correlation between U.S. and non-U.S. equity returns, estimated from monthly VTI and VXUS returns from 2011 to 2026, the weighted volatility is:
+MSCI ACWI covers developed/emerging large and mid caps, excluding small caps. MSCI Hong Kong follows country classification and differs from HSI's mainland-company exposure. MSCI China includes eligible offshore listings and partial A-share inclusion, with coverage changing over time; it is not Shanghai-only.
 
-```text
-sqrt(0.6239² × 15.0² + 0.3761² × 19.1²
-     + 2 × 0.6239 × 0.3761 × 0.84 × 15.0 × 19.1) = 15.88%
-```
+ETF proxies use Yahoo daily adjusted market closes and their distribution adjustments. CAGR uses actual endpoints and elapsed days / 365.2425. SD is sample monthly simple-return SD times sqrt(12), excluding the initial partial month. ETF returns embed fund expenses; enter only additional expenses in annual fees. CORP's issuer reports inception NAV CAGR of 1.80%, compared with the 1.79% market-close calculation. SHY/IEF vendor histories start eight calendar days after their July 22, 2002 fund launches.
 
-The simulation takes an arithmetic mean, not the compound median. For lognormal returns, the arithmetic mean is approximately the compound return plus half the variance:
+References: [MSCI](https://www.msci.com/indexes), [CORP](https://www.ishares.com/ch/individual/en/products/251813/ishares-global-corporate-bond-ucits-etf), [SHY](https://www.ishares.com/us/products/239452/ishares-1-3-year-treasury-bond-etf), [IEF](https://www.ishares.com/us/products/239456/ishares-7-10-year-treasury-bond-etf). The implementation plan records ETF inputs, checksums, and longer-history targets. Raw provider observations are not redistributed; public access does not establish redistribution permission.
 
-```text
-5.875% + 15.88² / 200 = 7.14%
-```
+The offline tool accepts a local JSON array of monthly observations, each with an ISO date and positive value:
 
-The default input is rounded to 7.1%. The model's resulting median compound return is about 5.9%.
+`node --experimental-strip-types scripts/build-assumption-presets.ts path/to/monthly-levels.json`
 
-### Bond derivation
+It rejects missing/duplicate months and invalid values, then outputs CAGR, SD, dates, observation count, and input checksum. It does not download data. Browsers use the frozen catalog without market-data requests.
 
-Vanguard's 10-year midpoints are 5.6% for U.S. aggregate bonds and 5.7% for global ex-U.S. aggregate bonds hedged to the dollar. Their median volatilities are 6.3% and 5.3%. A roughly equal blend gives about 5.65% expected compound return and 5.5% volatility. Converting to the app's arithmetic-mean input gives approximately 5.8%.
+Historical returns are descriptive, not forecasts. Longer index histories remain preferred; do not splice unlike benchmarks to manufacture length. A 30-year simulation can use a shorter calibration history, but additional simulations do not reduce uncertainty about the parameters or missing market regimes.
 
-### Inflation derivation
+### Saved-plan compatibility
 
-The default mean of 2.0% is the midpoint of Vanguard's 1.5%–2.5% 10-year U.S. inflation range. Both providers report similar uncertainty: Vanguard's median inflation volatility is 1.7%, and J.P. Morgan's 2026 Long-Term Capital Market Assumptions use a 1.77% annualized volatility for U.S. inflation. The app rounds this to 1.7%.
-
-Inflation is sampled independently each year from a normal distribution with that mean and standard deviation. This allows deflation and high-inflation years instead of holding purchasing power constant. The realized real return for a year is:
-
-```text
-real return = (1 + nominal return) / (1 + realized inflation) - 1
-```
-
-The denominator is floored at 0.01 to keep the calculation defined. The model does not include correlation between inflation and asset returns. In practice, unexpected inflation tends to hurt nominal bonds more than equities, so this independence assumption is a simplification.
-
-### Stock–bond correlation
-
-The default of 0.30 replaces the earlier 0.10 placeholder. It is a forward-looking compromise, not a constant of nature:
-
-- J.P. Morgan's 2026 LTCMA correlation matrix reports 0.33 between AC World Equity and U.S. Aggregate Bonds.
-- Monthly total returns for VT and BND have a correlation of about 0.39 from 2011 to 2026; VT and BNDW have about 0.52 from 2018 to 2026.
-- The stock–bond correlation was negative for much of 2000–2020 and turned positive during the 2022 inflation shock. Its sign depends on the inflation regime, so no single value fits every period.
-
-A positive correlation makes a balanced portfolio less diversified: stocks and bonds are more likely to fall together.
-
-Sources:
-
-- [Vanguard Capital Markets Model forecasts](https://corporate.vanguard.com/content/corporatesite/us/en/corp/vemo/vemo-return-forecasts.html), run of September 30, 2026, published October 21, 2026.
-- [FTSE Global All Cap Index factsheet](https://research.ftserussell.com/Analytics/FactSheets/Home/DownloadSingleIssue?issueName=ACGRF), September 30, 2026.
-- [J.P. Morgan 2026 Long-Term Capital Market Assumptions](https://am.jpmorgan.com/content/dam/jpm-am-aem/global/en/insights/ltcma-2026-us-matrix_usd.pdf), data as of September 30, 2025.
-- Yahoo Finance adjusted monthly prices for VT, BND, BNDW, VTI, and VXUS, accessed October 26, 2026.
-
-These are starting assumptions, not promises. A 10-year forecast does not describe every future period. Update them when your circumstances, portfolio, or the published assumptions change.
+The existing `ember-plan` key now contains a version-2 envelope with numeric inputs and preset IDs. Unversioned plans are converted from arithmetic returns to equivalent CAGR while preserving their modeled distributions and SD. Missing legacy fields use the previous defaults; the glide-length migration remains active. Legacy selections become Custom. Loading does not write storage; the next explicit Save writes version 2. Malformed or unsupported saves fall back to defaults. Stale preset IDs become Custom while valid numeric inputs remain available.
 
 ## Financial model
 
-Each simulation samples annual correlated lognormal gross stock and bond returns, plus an independent normal inflation rate. User inputs are nominal arithmetic mean returns and standard deviations. For a return mean `m` and standard deviation `s`, both expressed as decimals, the underlying normal parameters are:
+Each simulation samples annual correlated lognormal gross stock and bond returns, plus an independent normal inflation rate. Stock and bond inputs are nominal CAGR and simple-return SD. For decimal CAGR `g` and SD `s`, the underlying normal parameters are:
 
 ```text
-variance = ln(1 + s² / (1 + m)²)
-mu = ln(1 + m) - variance / 2
-sigma = sqrt(variance)
+A = 1 + g
+x = (1 + sqrt(1 + 4 × (s/A)²)) / 2
+mu = ln(A)
+sigma = sqrt(ln(x))
 ```
+
+The entered CAGR determines expected single-asset log growth, not every path’s realized CAGR or a weighted portfolio CAGR. The calibration preserves the simple-return variance as A² × x × (x − 1).
 
 The correlation input applies to the underlying normal shocks. It is not the exact Pearson correlation of the resulting simple returns. Asset returns remain above −100%.
 
@@ -176,7 +147,7 @@ Each success estimate includes a 95% Wilson score interval. This interval measur
 
 Each main run also evaluates four illustrative stresses against the submitted inputs:
 
-- Reduce both stock and bond arithmetic mean returns by 1 percentage point.
+- Reduce both stock and bond CAGR inputs by 1 percentage point.
 - Reduce both returns by 2 percentage points.
 - Increase mean inflation by 1 percentage point.
 - Set stock–bond shock correlation to the greater of 0.70 and the submitted correlation. This stress is unchanged if the submitted correlation is already at least 0.70.
@@ -187,7 +158,7 @@ Simulations use a deterministic seed of 42. Scenario comparisons use common rand
 
 ## Limits
 
-The model has not been validated against a historical retirement dataset or an independent simulation model. The stress table tests sensitivity within the same model; it does not establish that its absolute success probabilities predict real outcomes. The default 10-year capital-market assumptions are held constant across the entire planning horizon. No transition to a longer-term forecast is applied.
+The model has not been validated against a historical retirement dataset or an independent simulation model. The stress table tests sensitivity within the same model; it does not establish that its absolute success probabilities predict real outcomes. Historical preset parameters are held constant across the planning horizon. No market-regime transition is applied.
 
 The model uses independent annual shocks, constant return and inflation distributions, and annual cash flows. It does not model serial correlation, changing market regimes, correlation between inflation and returns, tax rules, individual accounts, housing, irregular expenses, or flexible spending. Enter estimated withdrawal taxes and healthcare costs in spending; enter pension and benefit income after tax. Income is assumed to be fully inflation-linked.
 

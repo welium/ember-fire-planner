@@ -1,5 +1,12 @@
 // English messages are stable keys; each row provides Traditional Chinese, Simplified Chinese, and Japanese.
 export const translations: Record<string, readonly [string, string, string]> = {
+  "Today": ["目前狀況","目前狀況","現在の状況"],
+  "Other income": ["其他收入","其他收入","その他の収入"],
+  "Investments": ["投資配置","投資配置","投資配分"],
+  "Advanced assumptions": ["進階假設","進階假設","詳細な前提条件"],
+  "Entry period for {field}": ["{field}的輸入週期","{field}的輸入週期","{field}の入力期間"],
+  "Per year": ["每年","每年","年額"],
+  "Per month": ["每月","每月","月額"],
   "Plan": ["計畫","計畫","プラン"],
   "Results": ["結果","結果","結果"],
   "Compare": ["比較","比較","比較"],

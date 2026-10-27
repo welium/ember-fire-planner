@@ -33,6 +33,7 @@ function Planner() {
   const [result, setResult] = useState<Analysis | null>(null)
   const [tab, setTab] = useState<Tab>('Today')
   const [busy, setBusy] = useState(true)
+  const [validationShown, setValidationShown] = useState(false)
   const [error, setError] = useState('')
   const [example, setExample] = useState(() => { try { return !localStorage.getItem('ember-plan') } catch { return true } })
   const [saved, setSaved] = useState(false)
@@ -49,7 +50,7 @@ function Planner() {
 
   const run = (next: Plan = plan) => {
     const issue = validate(next)
-    if (issue) { setError(issue); return }
+    if (issue) { showValidation(); return }
     worker.current?.terminate()
     // Keep the previous result paired with calculatedPlan until this run succeeds.
     setBusy(true); setError(''); setSubmitted({ ...next })
@@ -109,6 +110,30 @@ function Planner() {
     if (key === 'bondReturn' || key === 'bondSD') setBondPresetId('custom')
     setSaved(false); setExample(false)
   }
+  const fieldErrors: Partial<Record<keyof Plan, string>> = {}
+  for (const key of Object.keys(plan) as (keyof Plan)[]) {
+    if (!Number.isFinite(plan[key])) fieldErrors[key] = t("Enter a valid number.")
+  }
+  if (plan.age < 18 || plan.age > 109) fieldErrors.age = t("Current age must be between 18 and 109.")
+  if (plan.retirementAge <= plan.age || plan.retirementAge > 109) fieldErrors.retirementAge = t("Retirement age must be later than your current age and no later than 109.")
+  if (plan.endAge <= plan.retirementAge || plan.endAge > 110) fieldErrors.endAge = t("Planning age must be later than retirement and no later than 110.")
+  if (plan.incomeAge < 18 || plan.incomeAge > 110) fieldErrors.incomeAge = t("Income age must be between 18 and 110.")
+  const limits: Partial<Record<keyof Plan, [number, number]>> = { portfolio:[0,1e10], contribution:[0,1e10], spending:[0,1e10], income:[0,1e10], stockReturn:[-20,30], bondReturn:[-20,30], stockSD:[0,60], bondSD:[0,60], correlation:[-1,1], inflation:[0,15], inflationSD:[0,15], fee:[0,5], simulations:[100,20000] }
+  for (const [key, [min, max]] of Object.entries(limits) as [keyof Plan, [number, number]][]) {
+    if (plan[key] < min || plan[key] > max) fieldErrors[key] = t("Enter a value from {min} to {max}.", { min: number(min), max: number(max) })
+  }
+  for (const key of ['age','retirementAge','endAge','incomeAge','glideYears','simulations'] as (keyof Plan)[]) {
+    if (Number.isFinite(plan[key]) && !Number.isInteger(plan[key])) fieldErrors[key] = t("Enter a whole number.")
+  }
+  const fieldTab = (key: keyof Plan): Tab => ['age','portfolio','contribution'].includes(key) ? 'Today' : ['retirementAge','endAge','spending'].includes(key) ? 'Retirement' : ['income','incomeAge'].includes(key) ? 'Other income' : ['startStocks','retirementStocks','glideYears'].includes(key) ? 'Investments' : 'Advanced assumptions'
+  const showValidation = () => {
+    setValidationShown(true)
+    const first = (Object.keys(plan) as (keyof Plan)[]).find(key => fieldErrors[key])
+    if (first) {
+      setTab(fieldTab(first))
+      requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-field="' + first + '"] input')?.focus())
+    } else setError(validate(plan) ?? '')
+  }
   const presetField = (asset: Asset) => {
     const id = asset === 'stock' ? stockPresetId : bondPresetId
     const selected = presets.find(p => p.id === id)
@@ -129,7 +154,7 @@ function Planner() {
     document.getElementById(target === 'Results' ? 'results' : 'planner')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
   const save = () => {
-    const issue = validate(plan); if (issue) { setError(issue); return }
+    const issue = validate(plan); if (issue) { showValidation(); return }
     try { localStorage.setItem('ember-plan', JSON.stringify({ version: 2, plan, stockPresetId, bondPresetId })); setSaved(true); setTimeout(() => setSaved(false), 3000) } catch { setError('Your browser could not save this plan. You can still export your projection.') }
   }
   const exportData = () => {
@@ -139,7 +164,7 @@ function Planner() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); const a = document.createElement('a'); a.href = url; a.download = `ember-retirement-projection-${currency}.csv`; a.click(); URL.revokeObjectURL(url)
   }
   const compare = () => {
-    const issue = validate(plan); if (issue) { setError(issue); return }
+    const issue = validate(plan); if (issue) { showValidation(); return }
     scenarioWorkers.current.forEach(w => w.terminate()); scenarioWorkers.current = []
     setScenarioBusy(true); setScenarioResults([]); setScenarioSignature(JSON.stringify(plan))
     const variants = [{ name: 'Your current plan', plan: { ...plan } }, { name: 'Retire 3 years later', plan: { ...plan, retirementAge: Math.min(plan.retirementAge + 3, plan.endAge - 1) } }, { name: 'Spend 10% less', plan: { ...plan, spending: Math.round(plan.spending * .9) } }]
@@ -167,7 +192,7 @@ function Planner() {
     })
   }
   const scenariosStale = scenarioSignature !== null && scenarioSignature !== JSON.stringify(plan)
-  const field = (key: keyof Plan, label: string, options: { prefix?: string; suffix?: string; hint?: string; step?: number; min?: number; max?: number } = {}) => <label className="field" key={key}><span className="field-label">{label}{options.hint && <span className="hint-icon" title={options.hint}><CircleHelp size={13}/></span>}</span><span className="input-wrap">{options.prefix && <span>{options.prefix}</span>}{['portfolio','contribution','spending','income'].includes(key) ? <FinancialInput label={label} value={plan[key]} divisor={periods[key] === 'monthly' ? 12 : 1} format={number} onChange={value => update(key, value)}/> : <input aria-label={label} type="number" min={options.min ?? 0} max={options.max} step={options.step ?? 1} value={Number.isNaN(plan[key]) ? '' : plan[key]} onChange={e => update(key, e.target.value === '' ? NaN : Number(e.target.value))} onBlur={() => { if (key === 'age' || key === 'retirementAge') setPlan(p => clampGlideYears(p)) }}/>}{options.suffix && !["contribution","spending","income"].includes(key) && <span className="input-suffix">{options.suffix}</span>}</span>{["contribution","spending","income"].includes(key) && <select aria-label={t("Entry period for {field}", { field: label })} value={periods[key] ?? "annual"} onChange={e => setPeriods(p => ({ ...p, [key]: e.target.value as "annual" | "monthly" }))}><option value="annual">{t("Per year")}</option><option value="monthly">{t("Per month")}</option></select>}</label>
+  const field = (key: keyof Plan, label: string, options: { prefix?: string; suffix?: string; hint?: string; step?: number; min?: number; max?: number } = {}) => <label className="field" key={key} data-field={key}><span className="field-label">{label}{options.hint && <span className="hint-icon" title={options.hint}><CircleHelp size={13}/></span>}</span><span className="input-wrap">{options.prefix && <span>{options.prefix}</span>}{['portfolio','contribution','spending','income'].includes(key) ? <FinancialInput label={label} value={plan[key]} divisor={periods[key] === 'monthly' ? 12 : 1} format={number} error={validationShown ? fieldErrors[key] : undefined} fieldKey={key} onChange={value => update(key, value)}/> : <input aria-label={label} aria-invalid={validationShown && !!fieldErrors[key]} aria-describedby={validationShown && fieldErrors[key] ? `error-${key}` : undefined} type="number" min={options.min ?? 0} max={options.max} step={options.step ?? 1} value={Number.isNaN(plan[key]) ? '' : plan[key]} onChange={e => update(key, e.target.value === '' ? NaN : Number(e.target.value))} onBlur={() => { if (key === 'age' || key === 'retirementAge') setPlan(p => clampGlideYears(p)) }}/>}{options.suffix && !["contribution","spending","income"].includes(key) && <span className="input-suffix">{options.suffix}</span>}</span>{["contribution","spending","income"].includes(key) && <select aria-label={t("Entry period for {field}", { field: label })} value={periods[key] ?? "annual"} onChange={e => setPeriods(p => ({ ...p, [key]: e.target.value as "annual" | "monthly" }))}><option value="annual">{t("Per year")}</option><option value="monthly">{t("Per month")}</option></select>}{validationShown && fieldErrors[key] && <span className="field-error" id={`error-${key}`}>{fieldErrors[key]}</span>}</label>
   const success = result?.success ?? 0
   const showResult = result !== null
   const projectionStatus = busy ? t("Updating projection…") : dirty ? t("Inputs changed — update projection") : result ? t("Up to date") : t("Projection unavailable")
@@ -284,10 +309,10 @@ function Projection({ points, plan }: { points: Point[]; plan: Plan }) {
 }
 
 
-function FinancialInput({ label, value, divisor, format, onChange }: { label: string; value: number; divisor: number; format: (value: number) => string; onChange: (value: number) => void }) {
+function FinancialInput({ label, value, divisor, format, onChange, error, fieldKey }: { label: string; value: number; divisor: number; format: (value: number) => string; onChange: (value: number) => void; error?: string; fieldKey: string }) {
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (input.current && document.activeElement !== input.current) input.current.value = Number.isFinite(value) ? format(value / divisor) : ''
   }, [value, divisor, format])
-  return <input ref={input} aria-label={label} type="text" inputMode="decimal" defaultValue={Number.isFinite(value) ? format(value / divisor) : ''} onFocus={e => e.currentTarget.select()} onChange={e => onChange(e.target.value.trim() === '' ? NaN : Number(e.target.value.replaceAll(',', '')) * divisor)} onBlur={e => { e.currentTarget.value = Number.isFinite(value) ? format(value / divisor) : '' }}/>
+  return <input ref={input} aria-label={label} aria-invalid={!!error} aria-describedby={error ? `error-${fieldKey}` : undefined} type="text" inputMode="decimal" defaultValue={Number.isFinite(value) ? format(value / divisor) : ''} onFocus={e => e.currentTarget.select()} onChange={e => onChange(e.target.value.trim() === '' ? NaN : Number(e.target.value.replaceAll(',', '')) * divisor)} onBlur={e => { e.currentTarget.value = Number.isFinite(value) ? format(value / divisor) : '' }}/>
 }

@@ -1,5 +1,12 @@
 // English messages are stable keys; each row provides Traditional Chinese, Simplified Chinese, and Japanese.
 export const translations: Record<string, readonly [string, string, string]> = {
+  "Enter a valid number.": ["請輸入有效數字。","請輸入有效數字。","有効な数値を入力してください。"],
+  "Current age must be between 18 and 109.": ["目前年齡須介於 18 至 109 歲。","目前年齡須介於 18 至 109 歲。","現在の年齢は18〜109歳で入力してください。"],
+  "Retirement age must be later than your current age and no later than 109.": ["退休年齡須大於目前年齡，且不超過 109 歲。","退休年齡須大於目前年齡，且不超過 109 歲。","退職年齢は現在の年齢より後、109歳以下にしてください。"],
+  "Planning age must be later than retirement and no later than 110.": ["規劃結束年齡須大於退休年齡，且不超過 110 歲。","規劃結束年齡須大於退休年齡，且不超過 110 歲。","計画終了は退職年齢より後、110歳以下にしてください。"],
+  "Income age must be between 18 and 110.": ["收入起始年齡須介於 18 至 110 歲。","收入起始年齡須介於 18 至 110 歲。","収入開始年齢は18〜110歳にしてください。"],
+  "Enter a value from {min} to {max}.": ["請輸入 {min} 至 {max} 之間的值。","請輸入 {min} 至 {max} 之間的值。","{min}〜{max} の値を入力してください。"],
+  "Enter a whole number.": ["請輸入整數。","請輸入整數。","整数を入力してください。"],
   "Apply these changes": ["套用這些變更","套用這些變更","変更を適用"],
   "Changes applied.": ["已套用變更。","已套用變更。","変更を適用しました。"],
   "Undo": ["復原","復原","元に戻す"],

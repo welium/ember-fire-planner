@@ -37,3 +37,5 @@
 .tabs{display:flex;flex-wrap:wrap;gap:8px 16px}.tabs button{white-space:normal;text-align:left}.investment-editor{min-width:0}.investment-editor .glide-layout{grid-template-columns:minmax(0,1fr);gap:18px}.investment-editor .glide-note{flex-wrap:wrap;font-size:12px;padding:12px 0}.investment-editor .heading-with-icon h2{font-size:14px}.investment-editor .heading-with-icon p{font-size:12px}.field>select{font:inherit;font-size:12px;padding:6px;margin-top:6px;border:1px solid #dce3d8;border-radius:4px;background:#fff}.lower-grid{grid-template-columns:minmax(0,1fr)}.next-card{max-width:none}
 
 .apply-notice{display:flex;align-items:center;gap:18px;background:#edf3e9;border:1px solid #bacdaf;padding:12px 18px;margin-bottom:18px;border-radius:8px;font-size:14px}.scenario-delta{font-size:13px!important;line-height:1.7!important;color:#364536!important}.scenario-result{gap:16px;flex-wrap:wrap}
+
+.field-error{color:#9c3023;font-size:13px;line-height:1.5;margin-top:6px}input[aria-invalid=true]{outline:2px solid #ad3f31;outline-offset:2px}

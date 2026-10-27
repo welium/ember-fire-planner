@@ -1,5 +1,10 @@
 // English messages are stable keys; each row provides Traditional Chinese, Simplified Chinese, and Japanese.
 export const translations: Record<string, readonly [string, string, string]> = {
+  "Apply these changes": ["套用這些變更","套用這些變更","変更を適用"],
+  "Changes applied.": ["已套用變更。","已套用變更。","変更を適用しました。"],
+  "Undo": ["復原","復原","元に戻す"],
+  "Change: {points} percentage points": ["變化：{points} 個百分點","變化：{points} 個百分點","変化：{points} ポイント"],
+  "looked a little different?": ["有些不同？","有些不同？","少し変わったら？"],
   "Today": ["目前狀況","目前狀況","現在の状況"],
   "Other income": ["其他收入","其他收入","その他の収入"],
   "Investments": ["投資配置","投資配置","投資配分"],

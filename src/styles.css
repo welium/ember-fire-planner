@@ -23,3 +23,5 @@
 
 /* Keep editing and calculation in the same reading sequence. */
 .planner-grid{align-items:start}.planner-grid>*{min-width:0}.plan-card-bottom{margin-top:0;position:sticky;bottom:0;background:#fff;z-index:2;padding-bottom:8px}.sensitivity-card{margin-top:22px}
+
+.projection-status{display:flex;flex-direction:column;gap:5px;padding:12px 16px;border:1px solid #dce3d8;border-radius:8px;background:#fff;font-size:12px}.projection-status.pending{background:#fff8e8;border-color:#cfb676}.projection-status span{font-size:12px;color:#55604f}.projection-action-status{font-size:12px;margin-top:10px;line-height:1.5}.results-column[aria-busy=true] .projection-card{opacity:.75}

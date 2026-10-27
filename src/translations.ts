@@ -1,5 +1,10 @@
 // English messages are stable keys; each row provides Traditional Chinese, Simplified Chinese, and Japanese.
 export const translations: Record<string, readonly [string, string, string]> = {
+  "Updating projection…": ["正在更新推估…","正在更新推估…","予測を更新中…"],
+  "Inputs changed — update projection": ["輸入已變更，請更新推估","輸入已變更，請更新推估","入力が変更されました。予測を更新してください"],
+  "Up to date": ["推估已更新","推估已更新","最新の予測です"],
+  "Projection unavailable": ["目前無法顯示推估","目前無法顯示推估","予測を表示できません"],
+  "Exports use the last calculated projection.": ["匯出內容使用上次計算的推估。","匯出內容使用上次計算的推估。","最後に計算した予測をエクスポートします。"],
   "Update projection": ["更新推估", "更新推估", "予測を更新"],
   "Stock preset": ["股票預設","股票预设","株式プリセット"],
   "Bond preset": ["債券預設","债券预设","債券プリセット"],

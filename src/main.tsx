@@ -28,6 +28,7 @@ function Planner() {
   const [stockPresetId, setStockPresetId] = useState(loaded.stockPresetId)
   const [bondPresetId, setBondPresetId] = useState(loaded.bondPresetId)
   const [submitted, setSubmitted] = useState<Plan>(plan)
+  const [calculatedPlan, setCalculatedPlan] = useState<Plan>(plan)
   const [result, setResult] = useState<Analysis | null>(null)
   const [tab, setTab] = useState<Tab>('Your finances')
   const [busy, setBusy] = useState(true)
@@ -41,17 +42,17 @@ function Planner() {
   const [scenarioBusy, setScenarioBusy] = useState(false)
   const worker = useRef<Worker | null>(null)
   const scenarioWorkers = useRef<Worker[]>([])
-  const dirty = JSON.stringify(plan) !== JSON.stringify(submitted)
+  const dirty = JSON.stringify(plan) !== JSON.stringify(calculatedPlan)
 
   const run = (next: Plan = plan) => {
     const issue = validate(next)
     if (issue) { setError(issue); return }
     worker.current?.terminate()
-    // Drop the previous result immediately so labels never pair with stale numbers.
-    setBusy(true); setError(''); setSubmitted({ ...next }); setResult(null)
+    // Keep the previous result paired with calculatedPlan until this run succeeds.
+    setBusy(true); setError(''); setSubmitted({ ...next })
     const start = (instance: Worker) => {
       worker.current = instance
-      instance.onmessage = (event) => { if (event.data.error) setError(event.data.error); else setResult(event.data.result); setBusy(false); instance.terminate() }
+      instance.onmessage = (event) => { if (event.data.error) setError(event.data.error); else { setResult(event.data.result); setCalculatedPlan({ ...next }) }; setBusy(false); instance.terminate() }
       instance.onerror = () => { setError('The simulation could not finish. Please try again.'); setBusy(false); instance.terminate() }
       instance.postMessage({ plan: next, seed: 42, analysis: true })
     }
@@ -61,7 +62,7 @@ function Planner() {
       // Workers are unavailable in some browsers (for example Firefox < 114).
       // Fall back to running synchronously for small plans so the page stays usable.
       if (next.simulations <= SYNC_FALLBACK_LIMIT) {
-        try { setResult(analyze(next, 42)); setBusy(false) }
+        try { setResult(analyze(next, 42)); setCalculatedPlan({ ...next }); setBusy(false) }
         catch (error) { setError(error instanceof Error ? error.message : 'The simulation could not finish. Please try again.'); setBusy(false) }
       } else {
         setError('The simulation could not finish. Please try again.'); setBusy(false)
@@ -156,7 +157,8 @@ function Planner() {
   const scenariosStale = scenarioSignature !== null && scenarioSignature !== JSON.stringify(plan)
   const field = (key: keyof Plan, label: string, options: { prefix?: string; suffix?: string; hint?: string; step?: number; min?: number; max?: number } = {}) => <label className="field" key={key}><span className="field-label">{label}{options.hint && <span className="hint-icon" title={options.hint}><CircleHelp size={13}/></span>}</span><span className="input-wrap">{options.prefix && <span>{options.prefix}</span>}<input aria-label={label} type="number" min={options.min ?? 0} max={options.max} step={options.step ?? 1} value={Number.isNaN(plan[key]) ? '' : plan[key]} onChange={e => update(key, e.target.value === '' ? NaN : Number(e.target.value))} onBlur={() => { if (key === 'age' || key === 'retirementAge') setPlan(p => clampGlideYears(p)) }}/>{options.suffix && <span className="input-suffix">{options.suffix}</span>}</span></label>
   const success = result?.success ?? 0
-  const showResult = result !== null && !busy
+  const showResult = result !== null
+  const projectionStatus = busy ? t("Updating projection…") : dirty ? t("Inputs changed — update projection") : result ? t("Up to date") : t("Projection unavailable")
   // Preserve the scale during partial age edits; clamp the value on blur.
   const rawMaxGlide = maxGlideYears(plan)
   const maxGlide = Number.isFinite(rawMaxGlide) ? Math.max(rawMaxGlide, plan.glideYears) : plan.glideYears
@@ -180,13 +182,14 @@ function Planner() {
               {tab === 'Retirement' && <><div className="field-row">{field('retirementAge',t("Retirement age"),{suffix:t("years"),min:19,max:109})}{field('endAge',t("Plan through age"),{suffix:t("years"),min:20,max:110})}</div>{field('spending',t("Annual retirement spending"),{prefix:symbol,suffix:t("/ year")})}{field('income',t("Annual retirement income"),{prefix:symbol,suffix:t("/ year"),hint:t("After-tax pension or benefits, assumed to rise with inflation.")})}{field('incomeAge',t("Income starts at age"),{suffix:t("years"),min:18,max:110})}<div className="field-footnote"><Info size={13}/> {t("Income offsets spending once you retire.")}</div></>}
               {tab === 'Assumptions' && <><div className="assumption-label">{t("NOMINAL ANNUAL RETURNS (CAGR)")}</div>{presetField('stock')}<div className="field-row">{field('stockReturn',t("Stock return"),{suffix:'%',step:.1,min:-20,max:30,hint:t("Nominal annual compound return (CAGR), including reinvested dividends.")})}{field('stockSD',t("Stock volatility (SD)"),{suffix:'%',step:.1,max:60,hint:t("Annualized standard deviation of simple returns.")})}</div>{presetField('bond')}<div className="field-row">{field('bondReturn',t("Bond return"),{suffix:'%',step:.1,min:-20,max:30,hint:t("Nominal annual compound return (CAGR), including reinvested coupons.")})}{field('bondSD',t("Bond volatility (SD)"),{suffix:'%',step:.1,max:60,hint:t("Annualized standard deviation of simple returns.")})}</div><div className="field-row">{field('inflation',t("Inflation"),{suffix:'%',step:.1,max:15,hint:t("Average annual inflation. Prices are sampled around this rate.")})}{field('inflationSD',t("Inflation volatility (SD)"),{suffix:'%',step:.1,max:15,hint:t("Annualized standard deviation of inflation. Inflation is sampled independently each year.")})}</div><div className="field-row">{field('correlation',t("Stock–bond correlation"),{step:.05,min:-1,max:1,hint:t("Correlation between annual stock and bond returns. The default is an illustrative assumption; presets do not change it.")})}{field('fee',t("Annual fees"),{suffix:'%',step:.05,max:5})}</div><div className="field-row single">{field('simulations',t("Simulations"),{step:100,min:100,max:20000})}</div></>}
             </div>
-            <div className="plan-card-bottom">{error && <p className="error" role="alert">{t(error)}</p>}<button className="button primary run-button" onClick={() => run()} disabled={busy}>{busy ? <span className="spinner"/> : <Play size={14} fill="currentColor"/>}{busy ? t("Exploring your future…") : t("Update projection")}{!busy && <ArrowRight size={16}/>}</button><div className="simulation-note">{dirty ? t("You have changes ready to explore") : t("{count} possible futures. One more informed you.", { count: number(submitted.simulations) })}</div></div>
+            <div className="plan-card-bottom">{error && <p className="error" role="alert">{t(error)}</p>}<button className="button primary run-button" onClick={() => run()} disabled={busy}>{busy ? <span className="spinner"/> : <Play size={14} fill="currentColor"/>}{busy ? t("Exploring your future…") : t("Update projection")}{!busy && <ArrowRight size={16}/>}</button><div className="projection-action-status" role="status">{projectionStatus}</div><div className="simulation-note">{dirty ? t("You have changes ready to explore") : t("{count} possible futures. One more informed you.", { count: number(result ? calculatedPlan.simulations : submitted.simulations) })}</div></div>
           </section>
-          <div className={`results-column ${busy ? 'calculating' : ''}`} aria-live="polite" aria-busy={busy}>
-            <div className="metric-grid"><section className="card success-card"><div className="metric-label">{t("Probability of success")} <CircleHelp size={13} aria-label={t("Share of simulations that fund every retirement year")}/></div><div className="success-main"><strong>{showResult ? Math.round(success) : '—'}<span>%</span></strong></div><p>{t("Funds every retirement year through age {age}", { age: submitted.endAge })}</p>{showResult && <p>{t("95% sampling interval: {low}–{high}", { low: pct(result.successInterval[0]), high: pct(result.successInterval[1]) })}</p>}<div className="success-track"><span style={{width:`${showResult ? success : 0}%`}}/></div><div className="metric-bottom">{t("Based on {count} simulated lifetimes", { count: number(submitted.simulations) })} <ShieldCheck size={13}/></div></section>
-              <section className="card balance-card"><div className="metric-label">{t("Portfolio at retirement")} <Wallet size={15}/></div><strong className="metric-number">{showResult ? money(result.retirementBalance, true) : '—'}</strong><p>{t("Median balance at age {age}", { age: submitted.retirementAge })}</p><div className="metric-divider"/><div className="small-metric"><span>{t("Initial withdrawal rate")}</span><strong>{showResult && result.withdrawalRate !== null ? pct(result.withdrawalRate) : '—'}</strong></div><span className="muted tiny">{t("In today’s dollars, before withdrawals")}</span></section>
+          <div className="results-column" id="results" aria-busy={busy}>
+            <div className={`projection-status ${dirty ? "pending" : ""}`}><strong>{projectionStatus}</strong>{result && <span>{t("Exports use the last calculated projection.")}</span>}</div>
+            <div className="metric-grid"><section className="card success-card"><div className="metric-label">{t("Probability of success")} <CircleHelp size={13} aria-label={t("Share of simulations that fund every retirement year")}/></div><div className="success-main"><strong>{showResult ? Math.round(success) : '—'}<span>%</span></strong></div><p>{t("Funds every retirement year through age {age}", { age: calculatedPlan.endAge })}</p>{showResult && <p>{t("95% sampling interval: {low}–{high}", { low: pct(result.successInterval[0]), high: pct(result.successInterval[1]) })}</p>}<div className="success-track"><span style={{width:`${showResult ? success : 0}%`}}/></div><div className="metric-bottom">{t("Based on {count} simulated lifetimes", { count: number(submitted.simulations) })} <ShieldCheck size={13}/></div></section>
+              <section className="card balance-card"><div className="metric-label">{t("Portfolio at retirement")} <Wallet size={15}/></div><strong className="metric-number">{showResult ? money(result.retirementBalance, true) : '—'}</strong><p>{t("Median balance at age {age}", { age: calculatedPlan.retirementAge })}</p><div className="metric-divider"/><div className="small-metric"><span>{t("Initial withdrawal rate")}</span><strong>{showResult && result.withdrawalRate !== null ? pct(result.withdrawalRate) : '—'}</strong></div><span className="muted tiny">{t("In today’s dollars, before withdrawals")}</span></section>
             </div>
-            <section className="card projection-card"><div className="projection-heading"><div><h2>{t("A thousand ways your future could unfold")}</h2><p>{t("Portfolio value over time, adjusted for inflation")}</p></div><button className="icon-button" aria-label={t("Download projection as CSV")} title={t("Download projection as CSV")} onClick={exportData} disabled={!result}><ArrowDownToLine size={17}/></button></div><div className="chart-legend"><span><i className="legend-line"/>{t("Median outcome")}</span><span><i className="legend-square inner"/>{t("25th–75th percentile")}</span><span><i className="legend-square outer"/>{t("10th–90th percentile")}</span></div>{result ? <Projection points={result.points} plan={submitted}/> : <div className="chart-loading"><span className="spinner"/> {t("Finding the possibilities…")}</div>}<div className="chart-bottom"><span><span className="legend-dashed"/> {t("Retirement begins")}</span><span>{t("Values in today’s dollars")} <Info size={12}/></span></div></section>
+            <section className="card projection-card"><div className="projection-heading"><div><h2>{t("A thousand ways your future could unfold")}</h2><p>{t("Portfolio value over time, adjusted for inflation")}</p></div><button className="icon-button" aria-label={t("Download projection as CSV")} title={t("Download projection as CSV")} onClick={exportData} disabled={!result}><ArrowDownToLine size={17}/></button></div><div className="chart-legend"><span><i className="legend-line"/>{t("Median outcome")}</span><span><i className="legend-square inner"/>{t("25th–75th percentile")}</span><span><i className="legend-square outer"/>{t("10th–90th percentile")}</span></div>{result ? <Projection points={result.points} plan={calculatedPlan}/> : <div className="chart-loading"><span className="spinner"/> {t("Finding the possibilities…")}</div>}<div className="chart-bottom"><span><span className="legend-dashed"/> {t("Retirement begins")}</span><span>{t("Values in today’s dollars")} <Info size={12}/></span></div></section>
           </div>
         </div>
         {showResult && <Sensitivity analysis={result}/>}

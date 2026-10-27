@@ -50,7 +50,7 @@ The app has no client-side routes; navigation uses in-page anchors and local sta
 2. In **Retirement**, set the planning horizon and after-tax retirement income, including its starting age.
 3. In **Assumptions**, adjust stock and bond returns, standard deviations, correlation, inflation, inflation volatility, fees, and the number of simulations.
 4. Adjust the glide path to reduce stock exposure before retirement.
-5. Select **Run simulation** to update the projection. The glide path changes immediately; the result cards and main chart update after a run.
+5. Select **Run simulation** to update the projection and assumption stress scenarios. The glide path changes immediately; the result cards, main chart, and sensitivity table update after a run.
 6. Explore scenarios to compare retiring three years later or spending 10% less. You can apply an alternative to your plan.
 
 Use the selectors in the top bar to change the interface language and display currency. Both settings are saved on this device.
@@ -157,7 +157,7 @@ Inflation is drawn from a normal distribution with the chosen mean and standard 
 
 Because this division is nonlinear, real outcomes are not the same as deflating every path by the mean inflation rate.
 
-Stocks decline linearly from the starting weight to the retirement weight over the selected glide period, which is capped at the years remaining until retirement (at most 40 years). The glide therefore always starts at today's allocation and reaches the retirement allocation exactly at retirement. A zero-year glide switches allocation at retirement. The balance is bonds, and the portfolio rebalances annually.
+Stocks decline linearly from the starting weight to the retirement weight over the selected glide period, which is capped at the years remaining until retirement. The glide therefore always starts at today's allocation and reaches the retirement allocation exactly at retirement. A zero-year glide switches allocation at retirement. The balance is bonds, and the portfolio rebalances annually.
 
 All balances and cash flows are in today's purchasing power, expressed in the display currency. Each annual step:
 
@@ -168,11 +168,26 @@ All balances and cash flows are in today's purchasing power, expressed in the di
 
 Contributions, spending, and income are constant in real terms. The balance shown at retirement is before the first retirement withdrawal. The plan funds years from retirement age through the year before the end age. Success means meeting every annual withdrawal through this horizon. A funding shortfall permanently marks the path unsuccessful, including if later income restores a positive balance. Wealth cannot be negative. Exact depletion after a fully funded final withdrawal counts as success.
 
-The initial withdrawal rate uses spending less income already available at retirement, divided by the median portfolio at retirement. It is not a safe withdrawal recommendation. Percentiles are calculated independently at each age; a percentile curve is not one simulated lifetime.
+The initial withdrawal rate uses spending less income already available at retirement, divided by the median portfolio at retirement. If that balance is zero and a withdrawal is required, the rate is unavailable and displays as “—”. If no withdrawal is required, the rate is zero. It is not a safe withdrawal recommendation. Percentiles are calculated independently at each age; a percentile curve is not one simulated lifetime.
+
+### Sampling uncertainty and assumption sensitivity
+
+Each success estimate includes a 95% Wilson score interval. This interval measures finite-sample simulation error, conditional on the selected model and assumptions. It retains uncertainty when every path succeeds or every path fails. It does not measure uncertainty about expected returns, market regimes, or the model itself. At about 61% success, 5,000 paths give an interval of roughly ±1.35 percentage points; increasing the path count reduces sampling error but does not validate the financial model.
+
+Each main run also evaluates four illustrative stresses against the submitted inputs:
+
+- Reduce both stock and bond arithmetic mean returns by 1 percentage point.
+- Reduce both returns by 2 percentage points.
+- Increase mean inflation by 1 percentage point.
+- Set stock–bond shock correlation to the greater of 0.70 and the submitted correlation. This stress is unchanged if the submitted correlation is already at least 0.70.
+
+Each stress retains all other inputs and uses the same seed and annual shocks as the baseline. Return stresses keep the entered simple-return standard deviations constant. If an exact stress exceeds the supported input limits, its result is unavailable; the inputs are not clamped. The stresses do not change the saved plan or the default assumptions. They have no assigned likelihood, and their range is not a confidence interval. The table updates with the submitted simulation, so unsimulated edits do not relabel previous results. Plan-alternative comparisons remain separate from these assumption stresses.
 
 Simulations use a deterministic seed of 42. Scenario comparisons use common random shocks to reduce noise when comparing inputs. Work runs in Web Workers to keep the interface responsive.
 
 ## Limits
+
+The model has not been validated against a historical retirement dataset or an independent simulation model. The stress table tests sensitivity within the same model; it does not establish that its absolute success probabilities predict real outcomes. The default 10-year capital-market assumptions are held constant across the entire planning horizon. No transition to a longer-term forecast is applied.
 
 The model uses independent annual shocks, constant return and inflation distributions, and annual cash flows. It does not model serial correlation, changing market regimes, correlation between inflation and returns, tax rules, individual accounts, housing, irregular expenses, or flexible spending. Enter estimated withdrawal taxes and healthcare costs in spending; enter pension and benefit income after tax. Income is assumed to be fully inflation-linked.
 

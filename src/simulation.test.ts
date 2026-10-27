@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampGlideYears, defaults, maxGlideYears, simulate, stockWeight, validate } from './simulation'
+import { analyze, clampGlideYears, defaults, maxGlideYears, simulate, stockWeight, successInterval, validate } from './simulation'
 import type { Plan } from './simulation'
 const fixed: Plan = { ...defaults, age: 30, retirementAge: 32, endAge: 35, portfolio: 100, contribution: 20, spending: 30, income: 0, stockReturn: 0, bondReturn: 0, stockSD: 0, bondSD: 0, correlation: 0, inflation: 0, inflationSD: 0, fee: 0, glideYears: 0, simulations: 100 }
 describe('retirement cash flows', () => {
@@ -103,5 +103,53 @@ describe('glide path and uncertainty', () => {
     expect(validate(cleared)).not.toBeNull()
     // Retyping a valid age then clamps from the preserved value.
     expect(clampGlideYears({ ...cleared, age: 40 }).glideYears).toBe(10)
+  })
+})
+
+describe('uncertainty and sensitivity analysis', () => {
+  it('uses Wilson intervals with uncertainty at both endpoints', () => {
+    expect(successInterval(50, 100)[0]).toBeCloseTo(40.383, 2)
+    expect(successInterval(50, 100)[1]).toBeCloseTo(59.617, 2)
+    expect(successInterval(0, 100)[1]).toBeCloseTo(3.699, 2)
+    expect(successInterval(100, 100)[0]).toBeCloseTo(96.301, 2)
+    expect(successInterval(5000, 10000)[1] - 50).toBeLessThan(successInterval(50, 100)[1] - 50)
+    const result = simulate({ ...fixed, spending: 60 })
+    expect(result.successInterval).toEqual(successInterval(0, fixed.simulations))
+  })
+  it('distinguishes unfunded withdrawals from no required withdrawal', () => {
+    const empty = { ...fixed, portfolio: 0, contribution: 0 }
+    expect(simulate(empty).withdrawalRate).toBeNull()
+    expect(simulate({ ...empty, spending: 0 }).withdrawalRate).toBe(0)
+    expect(simulate({ ...empty, income: 30, incomeAge: 32 }).withdrawalRate).toBe(0)
+  })
+  it('preserves the baseline and inputs, using identical seeds for exact stress shifts', () => {
+    const input = { ...defaults, simulations: 100 }
+    const snapshot = { ...input }, analysis = analyze(input, 7)
+    const { sensitivity, ...baseline } = analysis
+    expect(input).toEqual(snapshot)
+    expect(baseline).toEqual(simulate(input, 7))
+    expect(sensitivity.map(s => [s.plan.stockReturn, s.plan.bondReturn, s.plan.inflation, s.plan.correlation])).toEqual([
+      [6.1, 4.8, 2, 0.3], [5.1, 3.8, 2, 0.3], [7.1, 5.8, 3, 0.3], [7.1, 5.8, 2, 0.7],
+    ])
+    for (const s of sensitivity) expect(s.result).toEqual(simulate(s.plan, 7))
+  })
+  it('reports unsupported stresses without clamping or failing the baseline', () => {
+    const input = { ...fixed, stockReturn: -20, inflation: 15, correlation: 0.9 }
+    const analysis = analyze(input)
+    expect(analysis.sensitivity.map(s => s.result === null)).toEqual([true, true, true, false])
+    expect(analysis.sensitivity[3].plan.correlation).toBe(0.9)
+    expect(analysis.success).toBe(simulate(input).success)
+  })
+  it('matches analytical one-year lognormal percentiles', () => {
+    // One accumulation year; observe that year before any retirement withdrawal.
+    const input = { ...fixed, retirementAge: 31, endAge: 32, portfolio: 100, contribution: 0, spending: 0, startStocks: 100, retirementStocks: 100, stockReturn: 7.1, stockSD: 15.9, simulations: 20000 }
+    const point = simulate(input, 42).points[1]
+    const variance = Math.log(1 + .159 ** 2 / 1.071 ** 2)
+    const mu = Math.log(1.071) - variance / 2
+    const expected = (z: number) => 100 * Math.exp(mu + Math.sqrt(variance) * z)
+    // Tolerances cover ordinary quantile sampling error at this sample size.
+    expect(Math.abs(point.p50 - expected(0))).toBeLessThan(.6)
+    expect(Math.abs(point.p10 - expected(-1.2815515655))).toBeLessThan(.6)
+    expect(Math.abs(point.p90 - expected(1.2815515655))).toBeLessThan(.8)
   })
 })

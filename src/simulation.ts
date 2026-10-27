@@ -7,7 +7,31 @@ export interface Plan {
 // Global capital-market assumptions. See README for the derivation and sources.
 export const defaults: Plan = { age: 30, retirementAge: 50, endAge: 95, portfolio: 250000, contribution: 24000, spending: 48000, income: 0, incomeAge: 67, stockReturn: 7.1, stockSD: 15.9, bondReturn: 5.8, bondSD: 5.5, correlation: 0.3, inflation: 2, inflationSD: 1.7, fee: 0.2, startStocks: 90, retirementStocks: 50, glideYears: 15, simulations: 5000 }
 export interface Point { age: number; p10: number; p25: number; p50: number; p75: number; p90: number; success: number }
-export interface Results { points: Point[]; success: number; retirementBalance: number; endingBalance: number; withdrawalRate: number; seed: number }
+export interface Results { points: Point[]; success: number; successInterval: [number, number]; retirementBalance: number; endingBalance: number; withdrawalRate: number | null; seed: number }
+export type StressId = 'lowerReturns' | 'muchLowerReturns' | 'higherInflation' | 'higherCorrelation'
+export interface StressResult { id: StressId; plan: Plan; result: Results | null }
+export interface Analysis extends Results { sensitivity: StressResult[] }
+// Wilson score interval: retains uncertainty even when all paths succeed or fail.
+export function successInterval(successes: number, count: number): [number, number] {
+  const z = 1.959963984540054, fraction = successes / count, denominator = 1 + z * z / count
+  const center = (fraction + z * z / (2 * count)) / denominator
+  const radius = z * Math.sqrt(fraction * (1 - fraction) / count + z * z / (4 * count * count)) / denominator
+  return [Math.max(0, center - radius) * 100, Math.min(1, center + radius) * 100]
+}
+// Exact stress shifts; unavailable inputs are reported instead of silently clamped.
+export function analyze(p: Plan, seed = 42): Analysis {
+  const baseline = simulate(p, seed)
+  const variants: { id: StressId; changes: Partial<Plan> }[] = [
+    { id: 'lowerReturns', changes: { stockReturn: p.stockReturn - 1, bondReturn: p.bondReturn - 1 } },
+    { id: 'muchLowerReturns', changes: { stockReturn: p.stockReturn - 2, bondReturn: p.bondReturn - 2 } },
+    { id: 'higherInflation', changes: { inflation: p.inflation + 1 } },
+    { id: 'higherCorrelation', changes: { correlation: Math.max(0.7, p.correlation) } },
+  ]
+  return { ...baseline, sensitivity: variants.map(({ id, changes }) => {
+    const plan = { ...p, ...changes }
+    return { id, plan, result: validate(plan) ? null : simulate(plan, seed) }
+  }) }
+}
 export function validate(p: Plan): string | null {
   if (Object.values(p).some(v => !Number.isFinite(v))) return 'Please enter a valid number in every field.'
   if (p.age < 18 || p.age >= p.retirementAge || p.retirementAge >= p.endAge || p.endAge > 110) return 'Use ages between 18 and 110, with retirement after your current age and before the plan ends.'
@@ -81,5 +105,6 @@ export function simulate(p: Plan, seed = 42): Results {
     return { age: p.age + i, p10: q(.1), p25: q(.25), p50: q(.5), p75: q(.75), p90: q(.9), success: survived[i] / p.simulations * 100 }
   })
   const retirementBalance = points[p.retirementAge - p.age].p50
-  return { points, success: points[years].success, retirementBalance, endingBalance: points[years].p50, withdrawalRate: retirementBalance ? Math.max(0, p.spending - (p.retirementAge >= p.incomeAge ? p.income : 0)) / retirementBalance * 100 : 0, seed }
+  const withdrawal = Math.max(0, p.spending - (p.retirementAge >= p.incomeAge ? p.income : 0))
+  return { points, success: points[years].success, successInterval: successInterval(survived[years], p.simulations), retirementBalance, endingBalance: points[years].p50, withdrawalRate: retirementBalance ? withdrawal / retirementBalance * 100 : withdrawal ? null : 0, seed }
 }

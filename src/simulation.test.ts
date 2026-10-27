@@ -80,7 +80,9 @@ describe('glide path and uncertainty', () => {
   })
   it('caps the glide path at the years left until retirement', () => {
     expect(maxGlideYears({ age: 30, retirementAge: 50 })).toBe(20)
-    expect(maxGlideYears({ age: 30, retirementAge: 90 })).toBe(40)
+    expect(maxGlideYears({ age: 30, retirementAge: 90 })).toBe(60)
+    expect(maxGlideYears({ age: 18, retirementAge: 90 })).toBe(72)
+    expect(validate({ ...defaults, age: 18, retirementAge: 90, glideYears: 72 })).toBeNull()
     expect(maxGlideYears({ age: 40, retirementAge: 40 })).toBe(0)
     // Regression: raising the current age must pull an over-long glide back
     // so the slider, label, chart, and simulation stay in agreement.
@@ -88,6 +90,11 @@ describe('glide path and uncertainty', () => {
     expect(clampGlideYears({ ...defaults, age: 30 }).glideYears).toBe(15)
     expect(validate({ ...defaults, age: 40 })).not.toBeNull()
     expect(validate({ ...defaults, age: 40, glideYears: 10 })).toBeNull()
+  })
+  it('preserves the glide setting for partial or invalid ages', () => {
+    for (const changes of [{ retirementAge: 6 }, { age: 60 }, { age: 3 }, { retirementAge: 50.5 }, { retirementAge: 110 }]) {
+      expect(clampGlideYears({ ...defaults, ...changes }).glideYears).toBe(15)
+    }
   })
   it('leaves the glide path alone while ages are incomplete', () => {
     // Clearing the age field to retype it must not corrupt the glide setting.

@@ -1,5 +1,10 @@
 // English messages are stable keys; each row provides Traditional Chinese, Simplified Chinese, and Japanese.
 export const translations: Record<string, readonly [string, string, string]> = {
+  "Plan": ["計畫","計畫","プラン"],
+  "Results": ["結果","結果","結果"],
+  "Compare": ["比較","比較","比較"],
+  "Close navigation": ["關閉導覽","關閉導覽","ナビゲーションを閉じる"],
+  "Return to plan": ["返回計畫","返回計畫","プランに戻る"],
   "Selected projection age": ["選擇推估年齡", "選擇推估年齡", "予測の年齢を選択"],
   "View projection table": ["查看推估表格", "查看推估表格", "予測の表を表示"],
   "Example plan": ["範例計畫","範例計畫","サンプルプラン"],

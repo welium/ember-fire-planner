@@ -239,14 +239,6 @@ function Planner() {
     })
   }
   const scenariosStale = scenarioSignature !== null && scenarioSignature !== JSON.stringify(plan)
-  const scenarioFrequency = (success: number) => {
-    const risk = 100 - success
-    if (risk === 0) return t("0 out of 100")
-    if (risk < 1) return t("Fewer than 1 out of 100")
-    if (risk === 100) return t("100 out of 100")
-    if (risk > 99) return t("More than 99 out of 100")
-    return t("About {count} out of 100", { count: number(Math.round(risk)) })
-  }
   const scenarioBaseline = scenarioResults.find(s => s.name === 'Your current plan')
   const field = (key: keyof Plan, label: string, options: { prefix?: string; suffix?: string; hint?: string; step?: number; min?: number; max?: number } = {}) => <label className="field" key={key} data-field={key}><span className="field-label">{label}{options.hint && <span className="hint-icon"><CircleHelp size={16}/></span>}</span>{options.hint && <span className="field-help">{options.hint}</span>}<span className="input-wrap">{options.prefix && <span>{options.prefix}</span>}{['portfolio','contribution','spending','income'].includes(key) ? <FinancialInput label={label} value={plan[key]} divisor={periods[key] === 'monthly' ? 12 : 1} format={number} error={validationShown ? fieldErrors[key] : undefined} fieldKey={key} onChange={value => update(key, value)}/> : <input aria-label={label} aria-invalid={validationShown && !!fieldErrors[key]} aria-describedby={validationShown && fieldErrors[key] ? `error-${key}` : undefined} type="number" min={options.min ?? 0} max={options.max} step={options.step ?? 1} value={Number.isNaN(plan[key]) ? '' : plan[key]} onChange={e => update(key, e.target.value === '' ? NaN : Number(e.target.value))} onBlur={() => { if (key === 'age' || key === 'retirementAge') setPlan(p => clampGlideYears(p)) }}/>}{options.suffix && !["contribution","spending","income"].includes(key) && <span className="input-suffix">{options.suffix}</span>}</span>{["contribution","spending","income"].includes(key) && <select aria-label={t("Entry period for {field}", { field: label })} value={periods[key] ?? "annual"} onChange={e => setPeriods(p => ({ ...p, [key]: e.target.value as "annual" | "monthly" }))}><option value="annual">{t("Per year")}</option><option value="monthly">{t("Per month")}</option></select>}{validationShown && fieldErrors[key] && <span className="field-error" id={`error-${key}`}>{fieldErrors[key]}</span>}</label>
   const stepIndex = planTabs.indexOf(tab)
@@ -267,13 +259,6 @@ function Planner() {
   }
   const success = result?.success ?? 0
   const failureRisk = 100 - success
-  const riskFrequency = failureRisk === 0
-    ? t("None of the simulated outcomes ran short of retirement spending.")
-    : failureRisk < 1
-      ? t("Fewer than 1 out of 100 simulated outcomes could not cover all retirement spending.")
-      : failureRisk > 99 && failureRisk < 100
-        ? t("More than 99 out of 100 simulated outcomes could not cover all retirement spending.")
-        : t("About {count} out of 100 simulated outcomes could not cover all retirement spending.", { count: Math.round(failureRisk) })
   const projectionStatus = !setupComplete ? t("Review each step before calculating your results.") : busy ? t("Updating projection…") : error ? t("Projection update needs attention") : dirty ? t("Inputs changed — update projection") : result ? t("Up to date") : t("Projection unavailable")
   // Preserve the scale during partial age edits; clamp the value on blur.
   const rawMaxGlide = maxGlideYears(plan)
@@ -325,7 +310,7 @@ function Planner() {
             <div className={`projection-status ${dirty || error ? "pending" : ""}`} role="status"><strong>{projectionStatus}</strong>{busy && <span>{t("Based on {count} simulated lifetimes", { count: number(submitted.simulations) })}</span>}{(dirty || busy || error) && <span>{t("Showing your last completed calculation. Your latest changes are not included yet.")}</span>}</div>
             <section className="card success-card result-summary" aria-labelledby="result-takeaway">
               <h3 id="result-takeaway">{failureRisk === 0 ? t("Your plan covered spending in every simulation.") : t("Your plan may leave you short of money in retirement.")}</h3>
-              <p className="result-frequency">{riskFrequency}</p>
+              <p className="result-risk">{t("Risk of running out of money")}: {pct(failureRisk)}</p>
               <p>{t("A shortfall means investments could not cover spending in at least one retirement year, after any other income.")}</p>
               <div className="calculated-assumptions"><h4>{t("This calculation assumes")}</h4><ul>
                 <li>{t("Retire at {age} and plan through age {endAge}.", { age: calculatedPlan.retirementAge, endAge: calculatedPlan.endAge })}</li>
@@ -338,7 +323,7 @@ function Planner() {
               <div className="metric-bottom">{t("Based on {count} simulated lifetimes", { count: number(calculatedPlan.simulations) })}</div>
             </section>
             <details className="result-details card"><summary>{t("Explore the details")}<span className="details-subtitle">{t("Exact estimates, investment balances, charts, and tougher market assumptions.")}</span></summary><div className="result-details-content">
-              <section className="exact-risk"><h3>{t("Risk of running out of money")}: {pct(failureRisk)}</h3><p>{t("95% sampling interval: {low}–{high}", { low: pct(100 - result.successInterval[1]), high: pct(100 - result.successInterval[0]) })}</p><p>{t("Results depend on your assumptions. The sampling interval measures simulation noise only; it does not cover uncertainty about future markets.")}</p></section>
+              <section className="exact-risk"><h3>{t("Risk of running out of money")}</h3><p>{t("95% sampling interval: {low}–{high}", { low: pct(100 - result.successInterval[1]), high: pct(100 - result.successInterval[0]) })}</p><p>{t("Results depend on your assumptions. The sampling interval measures simulation noise only; it does not cover uncertainty about future markets.")}</p></section>
               <section className="card balance-card"><div className="metric-label">{t("Investments when you retire")} <Wallet size={15}/></div><strong className="metric-number">{money(result.retirementBalance, true)}</strong><p>{t("Median balance at age {age}", { age: calculatedPlan.retirementAge })}</p><div className="metric-divider"/><div className="small-metric"><span>{t("Initial withdrawal rate")}</span><strong>{result.withdrawalRate !== null ? pct(result.withdrawalRate) : '—'}</strong></div><span className="muted tiny">{t("In today’s dollars, before withdrawals")}</span></section>
             <section className="card projection-card"><div className="projection-heading"><div><h2>{t("Your money over time")}</h2><p>{t("Portfolio value over time, adjusted for inflation")}</p></div><button className="icon-button" aria-label={t("Download projection as CSV")} title={t("Download projection as CSV")} onClick={exportData} disabled={!result}><ArrowDownToLine size={17}/></button></div><div className="chart-legend"><span><i className="legend-line"/>{t("Middle outcome")}</span><span><i className="legend-square inner"/>{t("Middle 50% of outcomes")}</span><span><i className="legend-square outer"/>{t("Middle 80% of outcomes")}</span></div>{result ? <Projection points={result.points} plan={calculatedPlan}/> : <div className="chart-loading"><span className="spinner"/> {t("Finding the possibilities…")}</div>}<div className="chart-bottom"><span><span className="legend-dashed"/> {t("Retirement begins")}</span><span>{t("Values in today’s dollars")} <Info size={12}/></span></div></section>
               <Sensitivity analysis={result}/>
@@ -362,8 +347,8 @@ function Planner() {
             <p>{baseline ? t("Retire at {age} with spending of {amount} per year.", { age: s.plan.retirementAge, amount: money(s.plan.spending) }) : ageChange ? t("Keep spending at {amount} per year.", { amount: money(s.plan.spending) }) : t("Keep retirement at age {age}.", { age: s.plan.retirementAge })}</p>
             {!baseline && scenarioBaseline && <p>{ageChange ? t("Current retirement age: {age}.", { age: scenarioBaseline.plan.retirementAge }) : t("Current spending: {amount} per year.", { amount: money(scenarioBaseline.plan.spending) })}</p>}
           </div>
-          <div className="scenario-outcome"><strong>{scenarioFrequency(s.result.success)}</strong><span>{t("simulated outcomes with a spending shortfall")}</span>
-            {!baseline && scenarioBaseline && <p>{t("Current inputs: {frequency}.", { frequency: scenarioFrequency(scenarioBaseline.result.success) })}</p>}
+          <div className="scenario-outcome"><strong>{pct(100 - s.result.success)}</strong><span>{t("Risk of running out of money")}</span>
+            {!baseline && scenarioBaseline && <p>{t("Current input risk: {risk}.", { risk: pct(100 - scenarioBaseline.result.success) })}</p>}
             {!baseline && (unchanged ? <p>{t("This already matches your current inputs.")}</p> : <button className="button secondary" disabled={scenariosStale || scenarioBusy || !scenarioBaseline} title={scenariosStale ? t("The plan changed since these scenarios were computed. Recompute to compare the current inputs.") : undefined} onClick={() => { setUndoPlan({ ...plan }); setExample(false); setPlan(s.plan); setSaved(false); run(s.plan); closeModal() }}>{ageChange ? t("Use retirement age {age}", { age: s.plan.retirementAge }) : t("Use spending of {amount} per year", { amount: money(s.plan.spending) })} <ArrowRight size={14}/></button>)}
           </div>
         </div>

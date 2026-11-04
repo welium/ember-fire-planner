@@ -23,6 +23,7 @@ export const translations: Record<string, readonly [string, string, string]> = {
   "Current retirement age: {age}.": ["目前退休年齡：{age} 歲。","当前退休年龄：{age} 岁。","現在の退職年齢：{age}歳。"],
   "Current spending: {amount} per year.": ["目前支出：每年 {amount}。","当前支出：每年 {amount}。","現在の支出：年間{amount}。"],
   "simulated outcomes with a spending shortfall": ["模擬結果出現支出短缺","模拟结果出现支出短缺","のシミュレーションで支出不足"],
+  "Current input risk: {risk}.": ["目前輸入的風險：{risk}。","当前输入的风险：{risk}。","現在の入力でのリスク：{risk}。"],
   "Current inputs: {frequency}.": ["目前輸入：{frequency}。","当前输入：{frequency}。","現在の入力：{frequency}。"],
   "This already matches your current inputs.": ["這與目前輸入相同。","这与当前输入相同。","現在の入力と同じです。"],
   "Use retirement age {age}": ["改為 {age} 歲退休","改为 {age} 岁退休","退職年齢を{age}歳にする"],

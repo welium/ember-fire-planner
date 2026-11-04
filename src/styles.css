@@ -78,7 +78,7 @@ main{padding:36px 36px 0;max-width:1480px}.page-title{gap:12px 24px;align-items:
 
 /* Results start with an explanation; technical analysis stays optional. */
 .result-summary h3{font-size:24px;line-height:1.4;letter-spacing:-.4px;font-weight:600;color:#293b30}
-.result-summary p.result-frequency{font-size:20px!important;font-weight:600;color:#3b4d40!important;line-height:1.5!important;margin-top:18px}
+.result-summary p.result-risk{font-size:20px!important;font-weight:600;color:#3b4d40!important;line-height:1.5!important;margin-top:18px}
 .calculated-assumptions{margin-top:20px;padding:16px;background:#f3f5f0;border-radius:8px}
 .calculated-assumptions h4{font-size:14px;margin:0;font-weight:600}
 .calculated-assumptions ul{font-size:14px;line-height:1.7;margin:8px 0 0;padding-left:20px}
@@ -89,7 +89,7 @@ main{padding:36px 36px 0;max-width:1480px}.page-title{gap:12px 24px;align-items:
 .exact-risk h3{font-size:16px;line-height:1.6}
 .exact-risk p{font-size:13px;line-height:1.7;color:#53645b;margin-top:10px}
 .result-details .sensitivity-card{margin-top:0}
-@media(max-width:430px){.result-summary h3{font-size:22px}.result-summary p.result-frequency{font-size:18px!important}.result-details{padding:20px 14px}.result-details .balance-card{padding:18px}.result-details .projection-card{padding:18px 12px}.result-details .sensitivity-card>details{padding:18px 12px}}
+@media(max-width:430px){.result-summary h3{font-size:22px}.result-summary p.result-risk{font-size:18px!important}.result-details{padding:20px 14px}.result-details .balance-card{padding:18px}.result-details .projection-card{padding:18px 12px}.result-details .sensitivity-card>details{padding:18px 12px}}
 
 /* Keep the current question ahead of secondary setup controls. */
 .setup-navigation{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}

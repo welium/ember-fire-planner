@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import ts from 'typescript'
-import { readFileSync } from 'node:fs'
+import * as ts from 'typescript/unstable/ast'
+import { API } from 'typescript/unstable/sync'
+import { fileURLToPath } from 'node:url'
 import { currencies, currencySymbols, formatMoney, languages, parsePreferences, translate } from './i18n'
 import { translations } from './translations'
 import { presets } from './assumption-presets'
@@ -8,15 +9,24 @@ import { presets } from './assumption-presets'
 describe('translations', () => {
   it('covers literal UI and validation messages in every supported language', () => {
     const keys = new Set<string>(presets.flatMap(p => [p.label, p.basis]))
-    for (const file of ['main.tsx', 'simulation.ts', 'simulation.worker.ts']) {
-      const source = ts.createSourceFile(file, readFileSync(new URL(file, import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, file.endsWith('tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
-      function visit(node: ts.Node) {
-        if (ts.isCallExpression(node) && node.expression.getText(source) === 't' && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) keys.add(node.arguments[0].text)
-        if (file === 'simulation.ts' && ts.isReturnStatement(node) && node.expression && ts.isStringLiteral(node.expression)) keys.add(node.expression.text)
-        if (ts.isCallExpression(node) && node.expression.getText(source) === 'setError' && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) keys.add(node.arguments[0].text)
-        ts.forEachChild(node, visit)
+    const api = new API()
+    try {
+      using snapshot = api.updateSnapshot({ openProjects: [fileURLToPath(new URL('../tsconfig.json', import.meta.url))] })
+      const project = snapshot.getProject(fileURLToPath(new URL('../tsconfig.json', import.meta.url)))
+      expect(project).toBeDefined()
+      for (const file of ['main.tsx', 'simulation.ts', 'simulation.worker.ts']) {
+        const source = project!.program.getSourceFile(fileURLToPath(new URL(file, import.meta.url)))
+        expect(source, file).toBeDefined()
+        function visit(node: ts.Node) {
+          if (ts.isCallExpression(node) && node.expression.getText(source) === 't' && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) keys.add(node.arguments[0].text)
+          if (file === 'simulation.ts' && ts.isReturnStatement(node) && node.expression && ts.isStringLiteral(node.expression)) keys.add(node.expression.text)
+          if (ts.isCallExpression(node) && node.expression.getText(source) === 'setError' && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) keys.add(node.arguments[0].text)
+          node.forEachChild(visit)
+        }
+        visit(source!)
       }
-      visit(source)
+    } finally {
+      api.close()
     }
     keys.delete('')
     const missing = [...keys].filter(key => !['·', '–'].includes(key) && !translations[key])

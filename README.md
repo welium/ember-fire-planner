@@ -23,6 +23,21 @@ npm run preview
 
 The production files are in `dist/`. `npm run preview` serves that directory with Vite for a quick local check.
 
+## Commit and release workflow
+
+Start each feature or fix on a separate feature branch based on the current `main`. Do not implement features or fixes directly on `main`. Keep commits focused and use clear messages that describe the change.
+
+Every push that advances remote `main` must include a package version increase relative to its previous version, including pushes with only documentation or maintenance changes. Individual commits and pushes to feature branches do not each require a version increase. Prepare the release on the feature branch before merging:
+
+1. Choose a semantic version increase: patch for fixes and maintenance, minor for backward-compatible features, or major for breaking changes. Update `package.json` and the root package versions in `package-lock.json` together.
+2. Whenever the package version increases, update all direct dependencies and devDependencies to their latest stable releases. Prefer an actively supported LTS release when available; otherwise use the latest stable release. Do not select nightly or prerelease versions. Review major-version changes, make required compatibility changes, and regenerate `package-lock.json`.
+3. Run `npm ci`, `npm test`, and `npm run build`. For UI changes, also check the affected workflow at desktop width and 320px, including a Traditional Chinese view. Resolve compatibility and verification failures before merging.
+4. Commit the release changes on the feature branch. Fetch the remote state and confirm that the release version is greater than the current remote `main` version. If remote `main` has advanced, update the feature branch and repeat the version, dependency, and verification checks.
+5. Merge the feature branch into `main` with `git merge --no-ff` and the feature branch name. Always create a merge commit, even when a fast-forward is possible. Do not use fast-forward, squash, or rebase merges into `main`.
+6. Verify the final merge result with `npm ci`, `npm test`, and `npm run build` before pushing `main`. If remote `main` advances before the push succeeds, update the branch and repeat the checks.
+
+The build displays the package version and a seven-character Git revision below the footer. Build after committing so the displayed revision matches the commit intended for deployment. Follow the deployment procedure below to publish the verified release.
+
 ## Deploy to Cloudflare Workers
 
 The site is a static Vite build served by Cloudflare Workers Assets. There is no Worker script and no backend. `wrangler.jsonc` points Wrangler at the `dist/` directory.

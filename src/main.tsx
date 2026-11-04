@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { I18nProvider, useI18n, languages, currencies } from './i18n'
-import { ArrowDownToLine, ArrowRight, Check, ChevronRight, CircleHelp, Flame, Globe2, Info, Leaf, Menu, Play, Plus, RotateCcw, ShieldCheck, SlidersHorizontal, TrendingUp, Wallet, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowRight, Check, ChevronRight, CircleHelp, Flame, Globe2, Info, Leaf, Menu, Play, RotateCcw, ShieldCheck, SlidersHorizontal, TrendingUp, Wallet, X } from 'lucide-react'
 import '@fontsource-variable/dm-sans'
 import '@fontsource-variable/manrope'
 import { analyze, clampGlideYears, defaults, maxGlideYears, simulate, stockWeight, validate } from './simulation'
@@ -33,11 +33,24 @@ function Planner() {
   const [calculatedPlan, setCalculatedPlan] = useState<Plan>(plan)
   const [result, setResult] = useState<Analysis | null>(null)
   const [tab, setTab] = useState<Tab>('Today')
-  const [busy, setBusy] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [reviewedSteps, setReviewedSteps] = useState<Tab[]>([])
+  const [setupComplete, setSetupComplete] = useState(false)
   const [validationShown, setValidationShown] = useState(false)
   const [error, setError] = useState('')
   const [example, setExample] = useState(() => { try { return !localStorage.getItem('ember-plan') } catch { return true } })
   const [saved, setSaved] = useState(!example)
+  const [investmentChoice, setInvestmentChoice] = useState<'example' | 'custom'>(example ? 'example' : 'custom')
+  const customMix = useRef({ startStocks: plan.startStocks, retirementStocks: plan.retirementStocks, glideYears: plan.glideYears })
+  const exampleMix = clampGlideYears({ ...plan, startStocks: defaults.startStocks, retirementStocks: defaults.retirementStocks, glideYears: defaults.glideYears })
+  const usingExampleMix = investmentChoice === 'example' && plan.startStocks === exampleMix.startStocks && plan.retirementStocks === exampleMix.retirementStocks && plan.glideYears === exampleMix.glideYears
+  const chooseInvestmentMix = (choice: 'example' | 'custom') => {
+    if ((choice === 'example') === usingExampleMix) return
+    if (choice === 'example') customMix.current = { startStocks: plan.startStocks, retirementStocks: plan.retirementStocks, glideYears: plan.glideYears }
+    const mix = choice === 'example' ? exampleMix : customMix.current
+    setPlan(p => clampGlideYears({ ...p, startStocks: mix.startStocks, retirementStocks: mix.retirementStocks, glideYears: mix.glideYears }))
+    setInvestmentChoice(choice); setSaved(false); setExample(false); setError('')
+  }
   const [modal, setModal] = useState<'method' | 'scenarios' | null>(null)
   const [nav, setNav] = useState('Plan')
   const [mobileNav, setMobileNav] = useState(false)
@@ -45,15 +58,23 @@ function Planner() {
   const [scenarioResults, setScenarioResults] = useState<{ name: string; result: Results; plan: Plan }[]>([])
   const [scenarioSignature, setScenarioSignature] = useState<string | null>(null)
   const [scenarioBusy, setScenarioBusy] = useState(false)
+  const [scenarioError, setScenarioError] = useState('')
+  const resultHeading = useRef<HTMLHeadingElement>(null)
   const worker = useRef<Worker | null>(null)
   const scenarioWorkers = useRef<Worker[]>([])
   const dirty = JSON.stringify(plan) !== JSON.stringify(calculatedPlan)
 
   const run = (next: Plan = plan) => {
+    if (!setupComplete) {
+      const confirmed = tab === 'Investments' ? [...reviewedSteps, tab] : reviewedSteps
+      const unfinished = planTabs.slice(0, 4).find(step => !confirmed.includes(step))
+      if (unfinished) { setNav('Plan'); changeStep(unfinished); return }
+    }
     const issue = validate(next)
     if (issue) { showValidation(); return }
     worker.current?.terminate()
     // Keep the previous result paired with calculatedPlan until this run succeeds.
+    setSetupComplete(true); setExample(false)
     setBusy(true); setError(''); setSubmitted({ ...next })
     const start = (instance: Worker) => {
       worker.current = instance
@@ -74,7 +95,12 @@ function Planner() {
       }
     }
   }
-  useEffect(() => { run(plan); return () => { worker.current?.terminate(); scenarioWorkers.current.forEach(w => w.terminate()) } }, []) // Initial simulation; subsequent runs are explicit.
+  useEffect(() => {
+    if (!result || modal || mobileNav) return
+    resultHeading.current?.focus({ preventScroll: true })
+    resultHeading.current?.closest('#results')?.scrollIntoView({ behavior: 'instant', block: 'start' })
+  }, [result])
+  useEffect(() => () => { worker.current?.terminate(); scenarioWorkers.current.forEach(w => w.terminate()) }, [])
   useEffect(() => {
     const close = (e: KeyboardEvent) => { if (e.key === 'Escape') { closeModal(); setMobileNav(false) } }
     window.addEventListener('keydown', close); return () => window.removeEventListener('keydown', close)
@@ -116,8 +142,8 @@ function Planner() {
     if (!Number.isFinite(plan[key])) fieldErrors[key] = t("Enter a valid number.")
   }
   if (plan.age < 18 || plan.age > 109) fieldErrors.age = t("Current age must be between 18 and 109.")
-  if (plan.retirementAge <= plan.age || plan.retirementAge > 109) fieldErrors.retirementAge = t("Retirement age must be later than your current age and no later than 109.")
-  if (plan.endAge <= plan.retirementAge || plan.endAge > 110) fieldErrors.endAge = t("Planning age must be later than retirement and no later than 110.")
+  if (plan.retirementAge < 19 || plan.retirementAge > 109) fieldErrors.retirementAge = t("Enter a retirement age from 19 to 109.")
+  if (plan.endAge < 20 || plan.endAge > 110) fieldErrors.endAge = t("Enter a planning age from 20 to 110.")
   if (plan.incomeAge < 18 || plan.incomeAge > 110) fieldErrors.incomeAge = t("Income age must be between 18 and 110.")
   const limits: Partial<Record<keyof Plan, [number, number]>> = { portfolio:[0,1e10], contribution:[0,1e10], spending:[0,1e10], income:[0,1e10], stockReturn:[-20,30], bondReturn:[-20,30], stockSD:[0,60], bondSD:[0,60], correlation:[-1,1], inflation:[0,15], inflationSD:[0,15], fee:[0,5], simulations:[100,20000] }
   for (const [key, [min, max]] of Object.entries(limits) as [keyof Plan, [number, number]][]) {
@@ -126,13 +152,25 @@ function Planner() {
   for (const key of ['age','retirementAge','endAge','incomeAge','glideYears','simulations'] as (keyof Plan)[]) {
     if (Number.isFinite(plan[key]) && !Number.isInteger(plan[key])) fieldErrors[key] = t("Enter a whole number.")
   }
+  // Only compare complete, individually valid ages; partial entries keep their own guidance.
+  const retirementOrderError = !fieldErrors.age && !fieldErrors.retirementAge && plan.retirementAge <= plan.age
+    ? t("Current age is {age}; retirement age is {retirementAge}. Retirement must be later. Lower your current age or raise your retirement age.", { age: number(plan.age), retirementAge: number(plan.retirementAge) }) : ''
+  const planningOrderError = !fieldErrors.retirementAge && !fieldErrors.endAge && plan.endAge <= plan.retirementAge
+    ? t("Retirement age is {retirementAge}; planning age is {endAge}. Plan through a later age or lower your retirement age.", { retirementAge: number(plan.retirementAge), endAge: number(plan.endAge) }) : ''
+  if (retirementOrderError) fieldErrors.retirementAge = retirementOrderError
+  if (planningOrderError) fieldErrors.endAge = planningOrderError
   const fieldTab = (key: keyof Plan): Tab => ['age','portfolio','contribution'].includes(key) ? 'Today' : ['retirementAge','endAge','spending'].includes(key) ? 'Retirement' : ['income','incomeAge'].includes(key) ? 'Other income' : ['startStocks','retirementStocks','glideYears'].includes(key) ? 'Investments' : 'Advanced assumptions'
-  const showValidation = () => {
+  const focusField = (key: keyof Plan) => {
+    setTab(fieldTab(key))
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-field="' + key + '"] input')?.focus())
+  }
+  const stepValidationKeys = (step: Tab) => (Object.keys(plan) as (keyof Plan)[]).filter(key => fieldTab(key) === step || (step === 'Today' && key === 'retirementAge') || (step === 'Retirement' && key === 'age'))
+  const showValidation = (keys = Object.keys(plan) as (keyof Plan)[]) => {
     setValidationShown(true)
-    const first = (Object.keys(plan) as (keyof Plan)[]).find(key => fieldErrors[key])
+    const first = keys.find(key => fieldErrors[key])
     if (first) {
-      setTab(fieldTab(first))
-      requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-field="' + first + '"] input')?.focus())
+      // Keep the dependent-age explanation beside the current-age input on step one.
+      focusField(tab === 'Today' && first === 'retirementAge' && retirementOrderError ? 'age' : first)
     } else setError(validate(plan) ?? '')
   }
   const presetField = (asset: Asset) => {
@@ -149,8 +187,15 @@ function Planner() {
   }
   const closeModal = () => { setModal(null); setNav('Plan') }
   const navigate = (target: string) => {
-    setNav(target); setMobileNav(false)
-    if (target === 'Compare') { if (validate(plan)) { setNav('Plan'); showValidation(); return } setModal('scenarios'); compare(); return }
+    setMobileNav(false)
+    if (target !== 'Plan' && !result) {
+      setNav('Plan'); setModal(null)
+      changeStep(planTabs.slice(0, 4).find(step => !reviewedSteps.includes(step)) ?? 'Investments')
+      document.getElementById('planner')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    setNav(target)
+    if (target === 'Compare') { if (validate(plan)) { setNav('Plan'); showValidation(); return } setModal('scenarios'); if (scenarioSignature !== JSON.stringify(plan) || scenarioResults.length === 0) compare(); return }
     setModal(null)
     document.getElementById(target === 'Results' ? 'results' : 'planner')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -165,9 +210,10 @@ function Planner() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); const a = document.createElement('a'); a.href = url; a.download = `ember-retirement-projection-${currency}.csv`; a.click(); URL.revokeObjectURL(url)
   }
   const compare = () => {
+    if (!setupComplete || !result) return
     const issue = validate(plan); if (issue) { showValidation(); return }
     scenarioWorkers.current.forEach(w => w.terminate()); scenarioWorkers.current = []
-    setScenarioBusy(true); setScenarioResults([]); setScenarioSignature(JSON.stringify(plan))
+    setScenarioError(''); setScenarioBusy(true); setScenarioResults([]); setScenarioSignature(JSON.stringify(plan))
     const variants = [{ name: 'Your current plan', plan: { ...plan } }, { name: 'Retire 3 years later', plan: { ...plan, retirementAge: Math.min(plan.retirementAge + 3, plan.endAge - 1) } }, { name: 'Spend 10% less', plan: { ...plan, spending: Math.round(plan.spending * .9) } }]
     let finished = 0
     variants.forEach(variant => {
@@ -176,40 +222,59 @@ function Planner() {
       const recordResult = (result: Results) => setScenarioResults(prev => [...prev, { ...variant, result }])
       try {
         const w = new Worker(new URL('./simulation.worker.ts', import.meta.url), { type: 'module' }); scenarioWorkers.current.push(w)
-        w.onmessage = (e) => { if (e.data.result) recordResult(e.data.result); else setError(e.data.error); finishWorker(w) }
-        w.onerror = () => { setError('A scenario could not finish. Please try again.'); finishWorker(w) }
+        w.onmessage = (e) => { if (e.data.result) recordResult(e.data.result); else setScenarioError(e.data.error); finishWorker(w) }
+        w.onerror = () => { setScenarioError('A scenario could not finish. Please try again.'); finishWorker(w) }
         w.postMessage({ plan: variant.plan, seed: 42 })
       } catch {
         // Same gated synchronous fallback as run(): small plans stay usable
         // where Workers are blocked, large plans surface the error instead.
         if (variant.plan.simulations <= SYNC_FALLBACK_LIMIT) {
           try { recordResult(simulate(variant.plan, 42)) }
-          catch (error) { setError(error instanceof Error ? error.message : 'A scenario could not finish. Please try again.') }
+          catch (error) { setScenarioError(error instanceof Error ? error.message : 'A scenario could not finish. Please try again.') }
         } else {
-          setError('A scenario could not finish. Please try again.')
+          setScenarioError('A scenario could not finish. Please try again.')
         }
         finish()
       }
     })
   }
   const scenariosStale = scenarioSignature !== null && scenarioSignature !== JSON.stringify(plan)
+  const scenarioFrequency = (success: number) => {
+    const risk = 100 - success
+    if (risk === 0) return t("0 out of 100")
+    if (risk < 1) return t("Fewer than 1 out of 100")
+    if (risk === 100) return t("100 out of 100")
+    if (risk > 99) return t("More than 99 out of 100")
+    return t("About {count} out of 100", { count: number(Math.round(risk)) })
+  }
+  const scenarioBaseline = scenarioResults.find(s => s.name === 'Your current plan')
   const field = (key: keyof Plan, label: string, options: { prefix?: string; suffix?: string; hint?: string; step?: number; min?: number; max?: number } = {}) => <label className="field" key={key} data-field={key}><span className="field-label">{label}{options.hint && <span className="hint-icon"><CircleHelp size={16}/></span>}</span>{options.hint && <span className="field-help">{options.hint}</span>}<span className="input-wrap">{options.prefix && <span>{options.prefix}</span>}{['portfolio','contribution','spending','income'].includes(key) ? <FinancialInput label={label} value={plan[key]} divisor={periods[key] === 'monthly' ? 12 : 1} format={number} error={validationShown ? fieldErrors[key] : undefined} fieldKey={key} onChange={value => update(key, value)}/> : <input aria-label={label} aria-invalid={validationShown && !!fieldErrors[key]} aria-describedby={validationShown && fieldErrors[key] ? `error-${key}` : undefined} type="number" min={options.min ?? 0} max={options.max} step={options.step ?? 1} value={Number.isNaN(plan[key]) ? '' : plan[key]} onChange={e => update(key, e.target.value === '' ? NaN : Number(e.target.value))} onBlur={() => { if (key === 'age' || key === 'retirementAge') setPlan(p => clampGlideYears(p)) }}/>}{options.suffix && !["contribution","spending","income"].includes(key) && <span className="input-suffix">{options.suffix}</span>}</span>{["contribution","spending","income"].includes(key) && <select aria-label={t("Entry period for {field}", { field: label })} value={periods[key] ?? "annual"} onChange={e => setPeriods(p => ({ ...p, [key]: e.target.value as "annual" | "monthly" }))}><option value="annual">{t("Per year")}</option><option value="monthly">{t("Per month")}</option></select>}{validationShown && fieldErrors[key] && <span className="field-error" id={`error-${key}`}>{fieldErrors[key]}</span>}</label>
   const stepIndex = planTabs.indexOf(tab)
   const stepLabels = [t("Your money today"), t("Your retirement"), t("Other income"), t("Your investments"), t("Advanced settings")]
   const stepTitles = [t("What are you starting with?"), t("What do you want retirement to look like?"), t("Will you have other retirement income?"), t("How will your money be invested?"), t("Adjust the calculation")]
-  const stepDescriptions = [t("Enter your age, investments, and how much you save."), t("Choose when to retire and how much you will spend."), t("Add a pension or benefits. No other income? Leave it at zero."), t("You can keep these settings if you are unsure. The rest is invested in bonds."), t("Optional. Keep the example assumptions or choose your own.")]
+  const stepDescriptions = [t("Enter your age, investments, and how much you save."), t("Choose when to retire and how much you will spend."), t("Add a pension or benefits. No other income? Leave it at zero."), t("Choose example assumptions for this calculation, or enter your own investment mix."), t("Optional. Keep the example assumptions or choose your own.")]
   const changeStep = (next: Tab) => {
+    const keys = stepValidationKeys(tab)
+    if (planTabs.indexOf(next) > stepIndex && keys.some(key => fieldErrors[key])) { showValidation(keys); return }
     setTab(next)
     requestAnimationFrame(() => document.getElementById('step-title')?.focus())
   }
   const nextStep = () => {
-    if ((Object.keys(fieldErrors) as (keyof Plan)[]).some(key => fieldTab(key) === tab)) { showValidation(); return }
+    const keys = stepValidationKeys(tab)
+    if (keys.some(key => fieldErrors[key])) { showValidation(keys); return }
+    setReviewedSteps(steps => steps.includes(tab) ? steps : [...steps, tab])
     changeStep(planTabs[Math.min(stepIndex + 1, 3)])
   }
   const success = result?.success ?? 0
   const failureRisk = 100 - success
-  const showResult = result !== null
-  const projectionStatus = busy ? t("Updating projection…") : error ? t("Projection update needs attention") : dirty ? t("Inputs changed — update projection") : result ? t("Up to date") : t("Projection unavailable")
+  const riskFrequency = failureRisk === 0
+    ? t("None of the simulated outcomes ran short of retirement spending.")
+    : failureRisk < 1
+      ? t("Fewer than 1 out of 100 simulated outcomes could not cover all retirement spending.")
+      : failureRisk > 99 && failureRisk < 100
+        ? t("More than 99 out of 100 simulated outcomes could not cover all retirement spending.")
+        : t("About {count} out of 100 simulated outcomes could not cover all retirement spending.", { count: Math.round(failureRisk) })
+  const projectionStatus = !setupComplete ? t("Review each step before calculating your results.") : busy ? t("Updating projection…") : error ? t("Projection update needs attention") : dirty ? t("Inputs changed — update projection") : result ? t("Up to date") : t("Projection unavailable")
   // Preserve the scale during partial age edits; clamp the value on blur.
   const rawMaxGlide = maxGlideYears(plan)
   const maxGlide = Number.isFinite(rawMaxGlide) ? Math.max(rawMaxGlide, plan.glideYears) : plan.glideYears
@@ -225,38 +290,86 @@ function Planner() {
     <div className="main-shell">
       <header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label={t("Open navigation")} aria-expanded={mobileNav} onClick={() => setMobileNav(!mobileNav)}><Menu size={20}/></button><span>{t("Your plan")}</span><ChevronRight size={13}/><strong>{t(nav)}</strong></div><div className="header-right"><div className="display-preferences"><select aria-label={t('Language')} value={language} onChange={e => setLanguage(e.target.value as typeof language)}>{languages.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select></div><span className="private-badge"><ShieldCheck size={14}/> {t("Your data stays yours")}</span></div></header>
       <main id="planner">
-        <div className="page-title"><div><div className="eyebrow"><span/> {t("YOUR RETIREMENT, STEP BY STEP")}</div><h1>{t("Can your money last through retirement?")}<span>.</span></h1><p>{t("Tell us about your savings and the life you want. See how your plan could work.")}</p></div><button className="button secondary save-button" onClick={save}>{saved ? <Check size={16}/> : <ArrowDownToLine size={16}/>} {saved ? t("Plan saved") : t("Save plan")}</button><span className="save-status" role="status">{saved ? t("Saved on this device") : t("Unsaved changes")}</span></div>
+        <div className="page-title"><div><div className="eyebrow"><span/> {t("YOUR RETIREMENT, STEP BY STEP")}</div><h1>{t("Can your money last through retirement?")}<span>.</span></h1><p>{t("Tell us about your savings and the life you want. See how your plan could work.")}</p></div></div>
         {undoPlan && <div className="apply-notice" role="status">{t("Changes applied.")} <button className="button secondary" onClick={() => { setPlan(undoPlan); run(undoPlan); setSaved(false); setUndoPlan(null) }}>{t("Undo")}</button></div>}
-        <div className="planner-grid">
-          <section className="card plan-card"><div className="card-heading"><div><h2>{t("1. Tell us about your plan")}</h2>{example && <span className="example-label">{t("Example plan")}</span>}<p>{t("Take one step at a time. You can change anything later.")}</p></div><span className="icon-tile"><SlidersHorizontal size={18}/></span></div>
-            <div className="tabs" role="tablist">{planTabs.map((tabName, index) => <button key={tabName} role="tab" id={`tab-${tabName.replaceAll(" ", "-")}`} aria-controls="plan-panel" tabIndex={tab === tabName ? 0 : -1} aria-selected={tab === tabName} onKeyDown={e => { const tabs: Tab[] = ["Today","Retirement","Other income","Investments","Advanced assumptions"]; const index = tabs.indexOf(tabName); const next = e.key === "ArrowRight" ? tabs[(index + 1) % tabs.length] : e.key === "ArrowLeft" ? tabs[(index + tabs.length - 1) % tabs.length] : e.key === "Home" ? tabs[0] : e.key === "End" ? tabs[tabs.length - 1] : null; if (next) { e.preventDefault(); setTab(next); requestAnimationFrame(() => document.getElementById(`tab-${next.replaceAll(" ", "-")}`)?.focus()) } }} onClick={() => setTab(tabName)}><span className="step-number" aria-hidden="true">{index < 4 ? index + 1 : <SlidersHorizontal size={16}/>}</span><span>{stepLabels[index]}</span></button>)}</div>
-            <div className="plan-fields" role="tabpanel" id="plan-panel" aria-labelledby={`tab-${tab.replaceAll(" ", "-")}`}><div className="step-intro"><span>{stepIndex < 4 ? t("Step {step} of 4", { step: stepIndex + 1 }) : t("Optional settings")}</span><h3 id="step-title" tabIndex={-1}>{stepTitles[stepIndex]}</h3><p>{stepDescriptions[stepIndex]}</p></div>
-              {tab === 'Today' && <><label className="currency-field"><span>{t("Currency")}</span><select aria-label={t('Currency')} value={currency} onChange={e => setCurrency(e.target.value as typeof currency)}>{currencies.map(c => <option key={c} value={c}>{c}</option>)}</select><span className="field-help">{t("Amounts are entered in {currency}. Changing currency does not convert values.", { currency })}</span></label><div className="field-row">{field('age',t("Current age"),{suffix:t("years"),min:18,max:109})}</div>{field('portfolio',t("Money you have invested"),{prefix:symbol,hint:t("Add up your investments and retirement accounts. Do not include your home.")})}{field('contribution',t("Money you add to investments"),{prefix:symbol,suffix:t("/ year"),hint:t("How much will you invest while working? Choose per month or per year below.")})}<div className="field-footnote"><Info size={13}/> {t("All amounts are in today’s money ({currency}).", { currency })}</div></>}
-              {tab === 'Retirement' && <><div className="field-row">{field('retirementAge',t("Retirement age"),{suffix:t("years"),min:19,max:109})}{field('endAge',t("Plan through age"),{suffix:t("years"),min:20,max:110})}</div>{field('spending',t("Money you will spend in retirement"),{prefix:symbol,suffix:t("/ year"),hint:t("Include housing, food, healthcare, taxes, and things you enjoy. Use today’s prices.")})}</>}
+        <div className={`planner-grid ${!result ? "setup-grid" : ""}`}>
+          <section className="card plan-card" aria-labelledby="step-title"><div className="setup-navigation"><label className="step-picker"><span>{stepIndex < 4 ? t("Step {step} of 4", { step: stepIndex + 1 }) : t("Optional settings")}</span><select aria-label={t("Your plan")} value={tab} onChange={e => changeStep(e.target.value as Tab)}>{planTabs.slice(0, 4).map((step, index) => <option key={step} value={step}>{index + 1}. {stepLabels[index]}</option>)}{stepIndex === 4 && <option value="Advanced assumptions">{t("Advanced settings")}</option>}</select></label>{example && <span className="example-label">{t("Example plan")}</span>}</div>
+            <div className="plan-fields" id="plan-panel"><div className="step-intro"><h3 id="step-title" tabIndex={-1}>{stepTitles[stepIndex]}</h3><p>{stepDescriptions[stepIndex]}</p></div>
+              {tab === 'Today' && <><div className="field-row">{field('age',t("Current age"),{suffix:t("years"),min:18,max:109})}</div>{validationShown && retirementOrderError && <div className="age-recovery" role="alert"><p className="field-error">{retirementOrderError}</p><button className="button secondary" onClick={() => focusField('retirementAge')}>{t("Check retirement age")}</button></div>}<label className="currency-field"><span>{t("Currency")}</span><select aria-label={t('Currency')} value={currency} onChange={e => setCurrency(e.target.value as typeof currency)}>{currencies.map(c => <option key={c} value={c}>{c}</option>)}</select><span className="field-help">{t("Amounts are entered in {currency}. Changing currency does not convert values.", { currency })}</span></label>{field('portfolio',t("Money you have invested"),{prefix:symbol,hint:t("Add up your investments and retirement accounts. Do not include your home.")})}{field('contribution',t("Money you add to investments"),{prefix:symbol,suffix:t("/ year"),hint:t("How much will you invest while working? Choose per month or per year below.")})}<div className="field-footnote"><Info size={13}/> {t("All amounts are in today’s money ({currency}).", { currency })}</div></>}
+              {tab === 'Retirement' && <><div className="field-row">{field('retirementAge',t("Retirement age"),{suffix:t("years"),min:19,max:109})}{field('endAge',t("Plan through age"),{suffix:t("years"),min:20,max:110})}</div>{validationShown && retirementOrderError && <button className="button secondary" onClick={() => focusField('age')}>{t("Check current age")}</button>}{field('spending',t("Money you will spend in retirement"),{prefix:symbol,suffix:t("/ year"),hint:t("Include housing, food, healthcare, taxes, and things you enjoy. Use today’s prices.")})}</>}
               {tab === 'Other income' && <>{field('income',t("Pension or other retirement income"),{prefix:symbol,suffix:t("/ year"),hint:t("Use the amount you receive after tax. Do not include withdrawals from your investments.")})}{field('incomeAge',t("Income starts at age"),{suffix:t("years"),min:18,max:110})}<div className="field-footnote"><Info size={13}/> {t("Income offsets spending once you retire.")}</div></>}
-              {tab === 'Investments' && <section className="investment-editor" id="glide-path"><div className="section-heading"><div className="heading-with-icon"><span className="icon-tile"><TrendingUp size={18}/></span><div><h2>{t("Choose your mix of stocks and bonds")}</h2><p>{t("More stocks can mean bigger gains and bigger losses.")}</p></div></div><span className="subtle-badge">{t("Glide path")}</span></div><div className="glide-layout"><div className="glide-controls"><RangeField label={t("Stocks today")} value={plan.startStocks} onChange={v => update('startStocks', v)} min={0} max={100} allowedMin={plan.retirementStocks} suffix="%"/><RangeField label={t("Stocks at retirement")} value={plan.retirementStocks} onChange={v => update('retirementStocks', v)} min={0} max={100} allowedMax={plan.startStocks} suffix="%"/><RangeField label={t("Start reducing risk")} value={plan.glideYears} onChange={v => update('glideYears', v)} min={0} max={maxGlide} suffix={t("years before")}/></div><GlideChart plan={plan}/></div><div className="glide-note"><ShieldCheck size={14}/><span>{t("Gradually shift from stocks to bonds. Rebalanced annually.")}</span><button onClick={() => setModal('method')} aria-label={t("Learn about glide paths")}><CircleHelp size={14}/></button></div></section>}
+              {tab === 'Investments' && <section className="investment-editor" id="glide-path">
+                <div className="investment-intro"><p>{t("Stocks are shares of company ownership. They can bring bigger gains and bigger losses.")}</p><p>{t("Bonds are loans to governments or companies. They can also lose value.")}</p></div>
+                <fieldset className="investment-choices"><legend>{t("Choose assumptions for your investment mix")}</legend>
+                  <label className="investment-choice"><input type="radio" name="investment-choice" checked={usingExampleMix} onChange={() => chooseInvestmentMix('example')}/><span><strong>{t("Use the example investment assumptions")}</strong><span>{t("An example for modeling your retirement, not investment advice.")}</span><span>{t("Today: {stocks}% stocks and {bonds}% bonds. At retirement: {retirementStocks}% stocks and {retirementBonds}% bonds.", { stocks: number(exampleMix.startStocks), bonds: number(100 - exampleMix.startStocks), retirementStocks: number(exampleMix.retirementStocks), retirementBonds: number(100 - exampleMix.retirementStocks) })}</span><span>{t("Start gradually moving from stocks to bonds {years} years before retirement.", { years: number(exampleMix.glideYears) })}</span></span></label>
+                  <label className="investment-choice"><input type="radio" name="investment-choice" checked={!usingExampleMix} onChange={() => chooseInvestmentMix('custom')}/><span><strong>{t("Enter my investment mix")}</strong><span>{t("Set your own stock percentages. The rest is bonds. Switching back restores your entries for this visit.")}</span></span></label>
+                </fieldset>
+                {!usingExampleMix && <div className="glide-layout"><div className="glide-controls"><RangeField label={t("Stocks today")} value={plan.startStocks} onChange={v => update('startStocks', v)} min={0} max={100} allowedMin={plan.retirementStocks} suffix="%"/><RangeField label={t("Stocks at retirement")} value={plan.retirementStocks} onChange={v => update('retirementStocks', v)} min={0} max={100} allowedMax={plan.startStocks} suffix="%"/><RangeField label={t("Start moving from stocks to bonds")} value={plan.glideYears} onChange={v => update('glideYears', v)} min={0} max={maxGlide} suffix={t("years before")}/></div><GlideChart plan={plan}/></div>}
+                <p className="investment-note">{t("Stock and bond returns, inflation, and fees are separate assumptions. Review them in Advanced settings.")}</p>
+              </section>}
               {tab === 'Advanced assumptions' && <><div className="assumption-label">{t("NOMINAL ANNUAL RETURNS (CAGR)")}</div>{presetField('stock')}<div className="field-row">{field('stockReturn',t("Stock return"),{suffix:'%',step:.1,min:-20,max:30,hint:t("Nominal annual compound return (CAGR), including reinvested dividends.")})}{field('stockSD',t("Stock volatility (SD)"),{suffix:'%',step:.1,max:60,hint:t("Annualized standard deviation of simple returns.")})}</div>{presetField('bond')}<div className="field-row">{field('bondReturn',t("Bond return"),{suffix:'%',step:.1,min:-20,max:30,hint:t("Nominal annual compound return (CAGR), including reinvested coupons.")})}{field('bondSD',t("Bond volatility (SD)"),{suffix:'%',step:.1,max:60,hint:t("Annualized standard deviation of simple returns.")})}</div><div className="field-row">{field('inflation',t("Inflation"),{suffix:'%',step:.1,max:15,hint:t("Average annual inflation. Prices are sampled around this rate.")})}{field('inflationSD',t("Inflation volatility (SD)"),{suffix:'%',step:.1,max:15,hint:t("Annualized standard deviation of inflation. Inflation is sampled independently each year.")})}</div><div className="field-row">{field('correlation',t("Stock–bond correlation"),{step:.05,min:-1,max:1,hint:t("Correlation between annual stock and bond returns. The default is an illustrative assumption; presets do not change it.")})}{field('fee',t("Annual fees"),{suffix:'%',step:.05,max:5})}</div><div className="field-row single">{field('simulations',t("Simulations"),{step:100,min:100,max:20000})}</div></>}
             </div>
-            <div className="plan-card-bottom"><div className="step-actions">{stepIndex > 0 && <button className="button secondary" onClick={() => changeStep(planTabs[stepIndex - 1])}>{t("Back")}</button>}{stepIndex < 3 && <button className="button secondary next-step" onClick={nextStep}>{t("Next: {step}", { step: stepLabels[stepIndex + 1] })}<ArrowRight size={16}/></button>}{stepIndex === 3 && <button className="advanced-link" onClick={() => changeStep("Advanced assumptions")}>{t("Advanced settings (optional)")}<ChevronRight size={16}/></button>}</div>{error && <p className="error" role="alert">{t(error)}</p>}<button className="button primary run-button" onClick={() => run()} disabled={busy}>{busy ? <span className="spinner"/> : <Play size={14} fill="currentColor"/>}{busy ? t("Checking your plan…") : t("Calculate my results")}{!busy && <ArrowRight size={16}/>}</button><div className="projection-action-status" role="status">{projectionStatus}</div><div className="simulation-note">{t("Use this button after changing your numbers.")}</div></div>
-          </section>
-          <div className="results-column" id="results" aria-busy={busy}><div className="results-intro"><h2>{t("2. See how your plan holds up")}</h2><p>{example ? t("These results use example numbers. Enter your own to see your plan.") : t("These results use your last calculation.")}</p></div>
-            <div className={`projection-status ${dirty ? "pending" : ""}`}><strong>{projectionStatus}</strong>{result && <span>{t("Change a number? Calculate again to update these results.")}</span>}</div>
-            <div className="metric-grid"><section className="card success-card"><div className="metric-label">{t("Risk of running out of money")} <CircleHelp size={13} aria-label={t("Share of simulations with a retirement spending shortfall")}/></div><p className="risk-direction">{t("Lower is better")}</p><div className="success-main"><strong>{showResult ? pct(failureRisk) : '—'}</strong></div><p>{showResult ? t("In {count} out of 100 simulated futures, your investments could not cover every year of retirement.", { count: Math.round(failureRisk) }) : t("Calculate your plan to see your risk.")}</p><p>{t("Retire at {age}", { age: calculatedPlan.retirementAge })} · {money(calculatedPlan.spending)} {t("/ year")} · {t("Plan through age")} {calculatedPlan.endAge}</p><p className="result-takeaway">{t("Want to improve this? Try retiring later or spending less.")}</p><button className="result-compare" onClick={() => navigate("Compare")}>{t("Compare those options")}<ArrowRight size={16}/></button>{showResult && <details><summary>{t("About this estimate")}</summary><p>{t("95% sampling interval: {low}–{high}", { low: pct(100 - result.successInterval[1]), high: pct(100 - result.successInterval[0]) })}</p><p>{t("Results depend on your assumptions. The sampling interval measures simulation noise only; it does not cover uncertainty about future markets.")}</p></details>}<p>{t("This is an estimate, not a guarantee.")}</p><div className="success-track"><span style={{width:`${showResult ? failureRisk : 0}%`}}/></div><div className="metric-bottom">{t("Based on {count} simulated lifetimes", { count: number(result ? calculatedPlan.simulations : submitted.simulations) })} <ShieldCheck size={13}/></div></section>
-              <section className="card balance-card"><div className="metric-label">{t("Investments when you retire")} <Wallet size={15}/></div><strong className="metric-number">{showResult ? money(result.retirementBalance, true) : '—'}</strong><p>{t("Median balance at age {age}", { age: calculatedPlan.retirementAge })}</p><div className="metric-divider"/><div className="small-metric"><span>{t("Initial withdrawal rate")}</span><strong>{showResult && result.withdrawalRate !== null ? pct(result.withdrawalRate) : '—'}</strong></div><span className="muted tiny">{t("In today’s dollars, before withdrawals")}</span></section>
+            <div className="plan-card-bottom">
+              <div className="step-actions">
+                {stepIndex > 0 && <button className="button secondary" onClick={() => changeStep(planTabs[stepIndex - 1])}>{t("Back")}</button>}
+                {setupComplete && stepIndex < 3 && <button className="button secondary next-step" onClick={nextStep}>{t("Next: {step}", { step: stepLabels[stepIndex + 1] })}<ArrowRight size={16}/></button>}
+                {stepIndex === 3 && <button className="advanced-link" onClick={() => { if ((Object.keys(fieldErrors) as (keyof Plan)[]).some(key => fieldTab(key) === tab)) { showValidation(); return }; setReviewedSteps(steps => steps.includes(tab) ? steps : [...steps, tab]); changeStep("Advanced assumptions") }}>{t("Advanced settings (optional)")}<ChevronRight size={16}/></button>}
+              </div>
+              {error && <p className="error" role="alert">{t(error)}</p>}
+              <div className="step-primary-action"><button className="button primary run-button" onClick={() => !setupComplete && stepIndex < 3 ? nextStep() : run()} disabled={busy || (setupComplete && !dirty && !!result && !error)}>{busy && <span className="spinner"/>}{busy ? t("Checking your plan…") : !setupComplete && stepIndex < 3 ? t("Continue") : result ? t("Update results") : t("Show my results")}{!busy && <ArrowRight size={16}/>}</button></div>
+              {setupComplete && <div className="projection-action-status" role="status">{projectionStatus}</div>}
+              <div className="plan-save"><button className="button secondary save-button" onClick={save}>{saved ? <Check size={16}/> : <ArrowDownToLine size={16}/>} {saved ? t("Plan saved") : t("Save plan")}</button><span className="save-status" role="status">{saved ? t("Saved on this device") : t("Unsaved changes")}</span></div>
             </div>
+          </section>
+          {result && <div className="results-column" id="results" aria-busy={busy}><div className="results-intro"><h2 ref={resultHeading} tabIndex={-1}>{t("2. See how your plan holds up")}</h2><p>{example ? t("These results use example numbers. Enter your own to see your plan.") : t("These results use your last calculation.")}</p></div>
+            <div className={`projection-status ${dirty || error ? "pending" : ""}`} role="status"><strong>{projectionStatus}</strong>{busy && <span>{t("Based on {count} simulated lifetimes", { count: number(submitted.simulations) })}</span>}{(dirty || busy || error) && <span>{t("Showing your last completed calculation. Your latest changes are not included yet.")}</span>}</div>
+            <section className="card success-card result-summary" aria-labelledby="result-takeaway">
+              <h3 id="result-takeaway">{failureRisk === 0 ? t("Your plan covered spending in every simulation.") : t("Your plan may leave you short of money in retirement.")}</h3>
+              <p className="result-frequency">{riskFrequency}</p>
+              <p>{t("A shortfall means investments could not cover spending in at least one retirement year, after any other income.")}</p>
+              <div className="calculated-assumptions"><h4>{t("This calculation assumes")}</h4><ul>
+                <li>{t("Retire at {age} and plan through age {endAge}.", { age: calculatedPlan.retirementAge, endAge: calculatedPlan.endAge })}</li>
+                <li>{t("Spend {amount} a year in retirement.", { amount: money(calculatedPlan.spending) })}</li>
+                <li>{t("Other income: {amount} a year from age {age}.", { amount: money(calculatedPlan.income), age: calculatedPlan.incomeAge })}</li>
+              </ul><p>{t("All amounts are in today’s money ({currency}).", { currency })}</p></div>
+              <p>{t("These are simulated possibilities, not a prediction. Actual results could be worse, even if no simulation ran short.")}</p>
+              <p>{t("Try retiring later or spending less to see how the risk changes.")}</p>
+              <button className="result-compare" onClick={() => navigate("Compare")}>{t("See ways to reduce this risk")}<ArrowRight size={16}/></button>
+              <div className="metric-bottom">{t("Based on {count} simulated lifetimes", { count: number(calculatedPlan.simulations) })}</div>
+            </section>
+            <details className="result-details card"><summary>{t("Explore the details")}<span className="details-subtitle">{t("Exact estimates, investment balances, charts, and tougher market assumptions.")}</span></summary><div className="result-details-content">
+              <section className="exact-risk"><h3>{t("Risk of running out of money")}: {pct(failureRisk)}</h3><p>{t("95% sampling interval: {low}–{high}", { low: pct(100 - result.successInterval[1]), high: pct(100 - result.successInterval[0]) })}</p><p>{t("Results depend on your assumptions. The sampling interval measures simulation noise only; it does not cover uncertainty about future markets.")}</p></section>
+              <section className="card balance-card"><div className="metric-label">{t("Investments when you retire")} <Wallet size={15}/></div><strong className="metric-number">{money(result.retirementBalance, true)}</strong><p>{t("Median balance at age {age}", { age: calculatedPlan.retirementAge })}</p><div className="metric-divider"/><div className="small-metric"><span>{t("Initial withdrawal rate")}</span><strong>{result.withdrawalRate !== null ? pct(result.withdrawalRate) : '—'}</strong></div><span className="muted tiny">{t("In today’s dollars, before withdrawals")}</span></section>
             <section className="card projection-card"><div className="projection-heading"><div><h2>{t("Your money over time")}</h2><p>{t("Portfolio value over time, adjusted for inflation")}</p></div><button className="icon-button" aria-label={t("Download projection as CSV")} title={t("Download projection as CSV")} onClick={exportData} disabled={!result}><ArrowDownToLine size={17}/></button></div><div className="chart-legend"><span><i className="legend-line"/>{t("Middle outcome")}</span><span><i className="legend-square inner"/>{t("Middle 50% of outcomes")}</span><span><i className="legend-square outer"/>{t("Middle 80% of outcomes")}</span></div>{result ? <Projection points={result.points} plan={calculatedPlan}/> : <div className="chart-loading"><span className="spinner"/> {t("Finding the possibilities…")}</div>}<div className="chart-bottom"><span><span className="legend-dashed"/> {t("Retirement begins")}</span><span>{t("Values in today’s dollars")} <Info size={12}/></span></div></section>
-          </div>
+              <Sensitivity analysis={result}/>
+            </div></details>
+          </div>}
         </div>
-        {showResult && <Sensitivity analysis={result}/>}
-        <div className="lower-grid">
-
-          <section className="next-card"><span className="next-icon"><Leaf size={22}/></span><div className="eyebrow">{t("YOUR LIFE. MORE POSSIBILITIES.")}</div><h2>{t("Make your plan stronger")}</h2><p>{t("Compare retiring later or spending less.")}</p><button className="button scenario-button" onClick={() => { navigate('Compare') }}><Plus size={16}/> {t("Compare my options")} <ArrowRight size={15}/></button></section>
-        </div>
-        {dirty && <div className="mobile-update-bar"><button className="button primary" disabled={busy} onClick={() => run()}>{busy ? t("Updating projection…") : t("Calculate my results")}</button></div>}
         <footer><span><Flame size={14}/> {t("Built for possibilities, not predictions.")}</span><button onClick={() => setModal('method')}>{t("Our methodology")} <ArrowUpRightIcon/></button><span>{t("Planning tool only. Not financial advice.")}</span></footer><div className="build-version"><span title={__BUILD_TIME__}>{__BUILD_LABEL__}</span></div>
       </main>
     </div>
-    {modal && <div className="modal-overlay" onClick={closeModal}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={e => e.stopPropagation()}><button autoFocus className="icon-button modal-close" aria-label={t("Close dialog")} onClick={closeModal}><X size={20}/></button>{modal === 'method' ? <><span className="icon-tile"><Leaf size={22}/></span><h2 id="modal-title">{t("A plan built on possibilities.")}</h2><p>{t("Ember explores thousands of investment paths to help you understand uncertainty, rather than relying on a single average return.")}</p><h3>{t("Understanding uncertainty")}</h3><p>{t("Results depend on your assumptions. The sampling interval measures simulation noise only; it does not cover uncertainty about future markets.")}</p><h3>{t("Returns & risk")}</h3><p>{t("Annual stock and bond returns follow correlated lognormal distributions, calibrated to your nominal compound annual returns (CAGR) and simple-return standard deviations. Correlation applies to the underlying normal shocks. Inflation is drawn independently each year from a normal distribution with your chosen mean and standard deviation. Each path uses a repeatable random seed so you can compare changes fairly.")}</p><h3>{t("Your money, in today’s terms")}</h3><p>{t("Contributions, spending, and retirement income stay constant in purchasing power. Each year’s nominal return is divided by that year’s realized inflation, so high inflation reduces real growth. Contributions arrive at year end before retirement. Spending, less any eligible income, is withdrawn at the start of each retirement year. Include estimated taxes and healthcare in spending; income should be after tax.")}</p><h3>{t("A gradual shift in risk")}</h3><p>{t("Your stock allocation decreases linearly over the selected years before retirement, then stays at your retirement allocation. The balance is bonds. We rebalance annually, deduct annual fees, and treat any year with insufficient funds for spending as a failed path—even if wealth later recovers.")}</p><h3>{t("Default assumptions")}</h3><p>{t("Presets use historical USD total returns with dividends or coupons reinvested. Selecting a preset applies its compound annual return (CAGR) and volatility. Historical periods differ by source. Inflation and correlation remain separate assumptions. Historical returns are not forecasts.")}</p><p className="source-note">{t("Sources and historical periods are linked beside each preset. ETF returns include fund expenses; annual fees should cover additional costs only.")}</p><h3>{t("Know the limits")}</h3><p>{t("Percentile bands describe simulated outcomes, not guarantees. The model does not include market regime changes, serial correlation, tax calculations, correlation between inflation and returns, or unexpected expenses. These assumptions are not a promise of future returns. Revisit your assumptions and plan with a qualified adviser.")}</p><button className="button secondary" onClick={() => { setExample(true); setPlan({ ...defaults }); setStockPresetId(defaultStockPreset.id); setBondPresetId(defaultBondPreset.id); setSaved(false); setModal(null); run({ ...defaults }) }}><RotateCcw size={15}/> {t("Restore example plan")}</button></> : <><span className="icon-tile"><SlidersHorizontal size={22}/></span><button className="button secondary" onClick={closeModal}>{t("Return to plan")}</button><h2 id="modal-title">{t("A small change. A different future.")}</h2><p>{t("Compare your current inputs with two practical alternatives. Each scenario uses the same random market paths.")}</p><button className="button primary" disabled={scenarioBusy} onClick={compare}>{scenarioBusy ? <span className="spinner"/> : <Play size={14}/>} {scenarioBusy ? t("Comparing possibilities…") : t("Compare scenarios")}</button>{scenariosStale && scenarioResults.length > 0 && <p className="notice" role="status">{t("The plan changed since these scenarios were computed. Recompute to compare the current inputs.")}</p>}{scenarioResults.length > 0 && <div className="scenario-list">{[...scenarioResults].sort((a,b) => ['Your current plan','Retire 3 years later','Spend 10% less'].indexOf(a.name) - ['Your current plan','Retire 3 years later','Spend 10% less'].indexOf(b.name)).map(s => <div className="scenario-result" key={s.name}><div><h3>{t(s.name)}</h3><p>{t("Retire at {age}", { age: s.plan.retirementAge })} {t("·")} {money(s.plan.spending)} {t("/ year")}</p><span>{t("Median at retirement:")} {money(s.result.retirementBalance)}</span></div><div className="scenario-outcome"><strong>{pct(100 - s.result.success)}</strong><span>{t("risk of running out")}</span>{s.name !== 'Your current plan' && scenarioResults.find(base => base.name === 'Your current plan') && <p className="scenario-delta">{pct(100 - scenarioResults.find(base => base.name === 'Your current plan')!.result.success)} → {pct(100 - s.result.success)}<br/>{t("Change: {points} percentage points", { points: number(Math.round((scenarioResults.find(base => base.name === 'Your current plan')!.result.success - s.result.success) * 10) / 10) })}</p>}{s.name !== 'Your current plan' && <button disabled={scenariosStale} title={scenariosStale ? t("The plan changed since these scenarios were computed. Recompute to compare the current inputs.") : undefined} onClick={() => { setUndoPlan({ ...plan }); setExample(false); setPlan(s.plan); setSaved(false); run(s.plan); closeModal() }}>{t("Apply these changes")} <ArrowRight size={12}/></button>}</div></div>)}</div>}{error && <p className="error" role="alert">{t(error)}</p>}<p className="tiny muted">{t("Risk means investments could not cover spending in at least one retirement year through age {age}. All amounts are in today’s money ({currency}).", { age: plan.endAge, currency })}</p></>}</section></div>}
+    {modal && <div className="modal-overlay" onClick={closeModal}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={e => e.stopPropagation()}><div className="modal-dismiss">{modal === 'scenarios' && <button className="button secondary" onClick={closeModal}>{t("Return to plan")}</button>}<button className="icon-button modal-close" aria-label={t("Close dialog")} onClick={closeModal}><X size={20}/></button></div>{modal === 'method' ? <><span className="icon-tile"><Leaf size={22}/></span><h2 id="modal-title">{t("A plan built on possibilities.")}</h2><p>{t("Ember explores thousands of investment paths to help you understand uncertainty, rather than relying on a single average return.")}</p><h3>{t("Understanding uncertainty")}</h3><p>{t("Results depend on your assumptions. The sampling interval measures simulation noise only; it does not cover uncertainty about future markets.")}</p><h3>{t("Returns & risk")}</h3><p>{t("Annual stock and bond returns follow correlated lognormal distributions, calibrated to your nominal compound annual returns (CAGR) and simple-return standard deviations. Correlation applies to the underlying normal shocks. Inflation is drawn independently each year from a normal distribution with your chosen mean and standard deviation. Each path uses a repeatable random seed so you can compare changes fairly.")}</p><h3>{t("Your money, in today’s terms")}</h3><p>{t("Contributions, spending, and retirement income stay constant in purchasing power. Each year’s nominal return is divided by that year’s realized inflation, so high inflation reduces real growth. Contributions arrive at year end before retirement. Spending, less any eligible income, is withdrawn at the start of each retirement year. Include estimated taxes and healthcare in spending; income should be after tax.")}</p><h3>{t("A gradual shift in risk")}</h3><p>{t("Your stock allocation decreases linearly over the selected years before retirement, then stays at your retirement allocation. The balance is bonds. We rebalance annually, deduct annual fees, and treat any year with insufficient funds for spending as a failed path—even if wealth later recovers.")}</p><h3>{t("Default assumptions")}</h3><p>{t("Presets use historical USD total returns with dividends or coupons reinvested. Selecting a preset applies its compound annual return (CAGR) and volatility. Historical periods differ by source. Inflation and correlation remain separate assumptions. Historical returns are not forecasts.")}</p><p className="source-note">{t("Sources and historical periods are linked beside each preset. ETF returns include fund expenses; annual fees should cover additional costs only.")}</p><h3>{t("Know the limits")}</h3><p>{t("Percentile bands describe simulated outcomes, not guarantees. The model does not include market regime changes, serial correlation, tax calculations, correlation between inflation and returns, or unexpected expenses. These assumptions are not a promise of future returns. Revisit your assumptions and plan with a qualified adviser.")}</p><button className="button secondary" onClick={() => { setExample(true); setPlan({ ...defaults }); setStockPresetId(defaultStockPreset.id); setBondPresetId(defaultBondPreset.id); setSaved(false); setModal(null); run({ ...defaults }) }}><RotateCcw size={15}/> {t("Restore example plan")}</button></> : <><span className="icon-tile"><SlidersHorizontal size={22}/></span>
+      <h2 id="modal-title">{t("Ways to reduce your risk")}</h2>
+      <p>{t("Compare one change at a time with your current inputs. Choose a change to update your plan.")}</p>
+      {scenarioBusy ? <p className="scenario-progress" role="status"><span className="spinner"/> {t("Comparing possibilities…")}</p> : (scenariosStale || scenarioResults.length < 3 || scenarioError) && <button className="button primary" onClick={compare}><Play size={14}/> {scenariosStale ? t("Compare current inputs") : scenarioError ? t("Try comparison again") : t("Compare scenarios")}</button>}
+      {scenariosStale && scenarioResults.length > 0 && <p className="notice" role="status">{t("The plan changed since these scenarios were computed. Recompute to compare the current inputs.")}</p>}
+      {scenarioResults.length > 0 && <div className="scenario-list">{[...scenarioResults].sort((a,b) => ['Your current plan','Retire 3 years later','Spend 10% less'].indexOf(a.name) - ['Your current plan','Retire 3 years later','Spend 10% less'].indexOf(b.name)).map(s => {
+        const baseline = s.name === 'Your current plan'
+        const ageChange = s.name === 'Retire 3 years later'
+        const unchanged = !baseline && scenarioBaseline && s.plan.retirementAge === scenarioBaseline.plan.retirementAge && s.plan.spending === scenarioBaseline.plan.spending
+        return <div className="scenario-result" key={s.name}>
+          <div><h3>{baseline ? t("Your current inputs") : ageChange ? t("Retire at {age}", { age: s.plan.retirementAge }) : t("Spend {amount} per year", { amount: money(s.plan.spending) })}</h3>
+            <p>{baseline ? t("Retire at {age} with spending of {amount} per year.", { age: s.plan.retirementAge, amount: money(s.plan.spending) }) : ageChange ? t("Keep spending at {amount} per year.", { amount: money(s.plan.spending) }) : t("Keep retirement at age {age}.", { age: s.plan.retirementAge })}</p>
+            {!baseline && scenarioBaseline && <p>{ageChange ? t("Current retirement age: {age}.", { age: scenarioBaseline.plan.retirementAge }) : t("Current spending: {amount} per year.", { amount: money(scenarioBaseline.plan.spending) })}</p>}
+          </div>
+          <div className="scenario-outcome"><strong>{scenarioFrequency(s.result.success)}</strong><span>{t("simulated outcomes with a spending shortfall")}</span>
+            {!baseline && scenarioBaseline && <p>{t("Current inputs: {frequency}.", { frequency: scenarioFrequency(scenarioBaseline.result.success) })}</p>}
+            {!baseline && (unchanged ? <p>{t("This already matches your current inputs.")}</p> : <button className="button secondary" disabled={scenariosStale || scenarioBusy || !scenarioBaseline} title={scenariosStale ? t("The plan changed since these scenarios were computed. Recompute to compare the current inputs.") : undefined} onClick={() => { setUndoPlan({ ...plan }); setExample(false); setPlan(s.plan); setSaved(false); run(s.plan); closeModal() }}>{ageChange ? t("Use retirement age {age}", { age: s.plan.retirementAge }) : t("Use spending of {amount} per year", { amount: money(s.plan.spending) })} <ArrowRight size={14}/></button>)}
+          </div>
+        </div>
+      })}</div>}
+      {scenarioError && <p className="error" role="alert">{t(scenarioError)}</p>}
+      <p className="tiny muted">{t("Risk means investments could not cover spending in at least one retirement year through age {age}. All amounts are in today’s money ({currency}).", { age: scenarioBaseline?.plan.endAge ?? plan.endAge, currency })}</p></>}</section></div>}
   </div>
 }
 
